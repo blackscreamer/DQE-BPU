@@ -383,15 +383,24 @@ function insertIdx(){
   return idx<0 ? rows.length : idx+1;
 }
 
+function lastUniteBefore(insertIdx){
+  for(let i=insertIdx-1;i>=0;i--){
+    const r=rows[i];
+    if(r.type==='art'||r.type==='subart') return r.unite;
+  }
+  return 'M²';
+}
+
 function addRow(type,level){
   const id=uid();
   let obj;
+  const idx=insertIdx();
   if(type==='chap')   obj={type,id,desig:'',collapsed:false};
   if(type==='sub')    obj={type,id,desig:'',level:level||1,collapsed:false};
-  if(type==='art')    obj={type,id,desig:'',unite:'M²',qty:'',pu:''};
-  if(type==='subart') obj={type,id,desig:'',unite:'M²',qty:'',pu:''};
+  if(type==='art')    obj={type,id,desig:'',unite:lastUniteBefore(idx),qty:'',pu:''};
+  if(type==='subart') obj={type,id,desig:'',unite:lastUniteBefore(idx),qty:'',pu:''};
   if(type==='blank')  obj={type,id,desig:''};
-  rows.splice(insertIdx(),0,obj);
+  rows.splice(idx,0,obj);
   selId=id;
   render();
   setTimeout(()=>{
@@ -518,6 +527,25 @@ function buildNums(){
 /* ═══════════════════════════════════════════
    TOTALS
 ═══════════════════════════════════════════ */
+function artHasSubarts(id){
+  const idx=rows.findIndex(r=>r.id===id);
+  if(idx<0)return false;
+  for(let i=idx+1;i<rows.length;i++){
+    if(rows[i].type==='blank')continue;
+    return rows[i].type==='subart';
+  }
+  return false;
+}
+function artParentTotal(r){
+  const idx=rows.findIndex(x=>x.id===r.id);
+  let total=0;
+  for(let i=idx+1;i<rows.length;i++){
+    if(rows[i].type==='blank')continue;
+    if(rows[i].type!=='subart')break;
+    total+=artTotal(rows[i]);
+  }
+  return total;
+}
 function artTotal(r){
   if(r.type!=='art'&&r.type!=='subart')return 0;
   if(mode==='BPU')return num(r.pu);
@@ -532,21 +560,49 @@ function computeTotals(){
       subStack=subStack.filter(s=>s.level<(r.level||1));
       subStack.push({id:r.id,level:r.level||1});
       subT[r.id]=0;
-    } else if(r.type==='art'||r.type==='subart'){
-      const t=artTotal(r);
+    } else if(r.type==='art'){
+      const t=artHasSubarts(r.id)?artParentTotal(r):artTotal(r);
       if(ci)chapT[ci]=(chapT[ci]||0)+t;
       subStack.forEach(s=>{subT[s.id]=(subT[s.id]||0)+t;});
+    } else if(r.type==='subart'){
+      // Skip subarticles that belong to a parent art (already counted above)
+      const idx=rows.indexOf(r);
+      let orphan=true;
+      for(let k=idx-1;k>=0;k--){
+        if(rows[k].type==='blank')continue;
+        orphan=(rows[k].type!=='art');break;
+      }
+      if(orphan){
+        const t=artTotal(r);
+        if(ci)chapT[ci]=(chapT[ci]||0)+t;
+        subStack.forEach(s=>{subT[s.id]=(subT[s.id]||0)+t;});
+      }
     }
   });
   return {chapT,subT};
 }
 
+function grandTotal(){
+  return rows.reduce((s,r)=>{
+    if(r.type==='art') return s+(artHasSubarts(r.id)?artParentTotal(r):artTotal(r));
+    if(r.type==='subart'){
+      const idx=rows.indexOf(r);
+      for(let k=idx-1;k>=0;k--){
+        if(rows[k].type==='blank')continue;
+        if(rows[k].type==='art')return s; // counted via parent
+        break;
+      }
+      return s+artTotal(r);
+    }
+    return s;
+  },0);
+}
 function recalc(){
   const {chapT,subT}=computeTotals();
   // art totals
   rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
     const el=document.getElementById('at-'+r.id);if(!el)return;
-    const t=artTotal(r);
+    const t=(r.type==='art'&&artHasSubarts(r.id))?artParentTotal(r):artTotal(r);
     el.textContent=t?da(t):'';el.className='tc'+(t?' v':'');
   });
   // sub totals
@@ -554,13 +610,18 @@ function recalc(){
   // chap totals
   Object.entries(chapT).forEach(([id,t])=>{const el=document.getElementById('ct-'+id);if(el)el.textContent=da(t);});
   // grand
-  const grand=rows.filter(r=>r.type==='art'||r.type==='subart').reduce((s,r)=>s+artTotal(r),0);
+  const grand=grandTotal();
   const el=document.getElementById('gt-val');if(el)el.textContent=da(grand);
-  // footer
+  // TVA/TTC table cells
   const tvaPct=num(document.getElementById('tva').value)/100;
+  const tvaAmt=grand*tvaPct;
+  const elTva=document.getElementById('tva-val');if(elTva)elTva.textContent=da(tvaAmt);
+  const elTtc=document.getElementById('ttc-val');if(elTtc)elTtc.textContent=da(grand+tvaAmt);
+  const elTvaLbl=document.getElementById('tva-label');if(elTvaLbl)elTvaLbl.textContent='TVA ('+document.getElementById('tva').value+'%)';
+  // footer
   document.getElementById('fht').textContent=da(grand);
-  document.getElementById('ftva').textContent=da(grand*tvaPct);
-  document.getElementById('fttc').textContent=da(grand+grand*tvaPct);
+  document.getElementById('ftva').textContent=da(tvaAmt);
+  document.getElementById('fttc').textContent=da(grand+tvaAmt);
   document.getElementById('fpct').textContent=document.getElementById('tva').value;
   document.getElementById('fcnt').textContent=rows.filter(r=>r.type==='art').length;
   // Auto-fit total column width
@@ -636,10 +697,10 @@ function render(){
           onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
         <td colspan="4" style="background:${C.chapBg}">
           <input class="di" value="${esc(r.desig)}" placeholder="Nom du chapitre…"
-            style="color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
+            style="color:${C.chapFg}!important;-webkit-text-fill-color:${C.chapFg};caret-color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
             oninput="upd('${r.id}','desig',this.value)"/>
         </td>
-        <td class="tc" style="background:${C.chapBg};color:${C.chapFg}" id="ct-${r.id}"></td>
+        <td style="background:${C.chapBg}"></td>
       </tr>`;
     }
 
@@ -660,15 +721,16 @@ function render(){
           onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
         <td colspan="4" style="background:${bg}">
           <input class="di" value="${esc(r.desig)}" placeholder="Nom du sous-chapitre…"
-            style="color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
+            style="color:${fg}!important;-webkit-text-fill-color:${fg};caret-color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
             oninput="upd('${r.id}','desig',this.value)"/>
         </td>
-        <td class="tc" style="background:${bg};color:${fg}" id="st-${r.id}"></td>
+        <td style="background:${bg}"></td>
       </tr>`;
     }
 
     else if(r.type==='art'){
-      const t=artTotal(r);
+      const hasKids=artHasSubarts(r.id);
+      const t=hasKids?artParentTotal(r):artTotal(r);
       const qv=mode==='BPU'?'visibility:hidden':'';
       html+=`<tr class="ra${selCls}" id="ro-${r.id}" ${h}
         ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
@@ -679,7 +741,11 @@ function render(){
             style="color:${C.artFg}"
             oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
         </td>
-        <td style="background:${C.artBg}">
+        ${hasKids
+          ?`<td style="background:${C.artBg}"></td>
+        <td style="background:${C.artBg}"></td>
+        <td style="background:${C.artBg}"></td>`
+          :`<td style="background:${C.artBg}">
           <select class="ui" style="color:${C.artFg}" onchange="upd('${r.id}','unite',this.value)">
             ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
           </select>
@@ -691,7 +757,7 @@ function render(){
         <td style="background:${C.artBg}">
           <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
             style="color:${C.artFg}" oninput="upd('${r.id}','pu',this.value)" onkeydown="kn(event,'${r.id}','p')"/>
-        </td>
+        </td>`}
         <td class="tc${t?' v':''}" style="background:${C.artBg};color:${C.artFg}" id="at-${r.id}">${t?da(t):''}</td>
       </tr>`;
     }
@@ -742,13 +808,28 @@ function render(){
   while(subStk.length){const s=subStk.pop();html+=subTotRow(s,true);}
   if(chapStk.length)html+=chapTotRow(chapStk.pop());
 
-  // Grand total
-  const grand=rows.filter(r=>r.type==='art'||r.type==='subart').reduce((s,r)=>s+artTotal(r),0);
+  // Grand total + TVA + TTC
+  const grand=grandTotal();
+  const tvaPct=num(document.getElementById('tva').value)/100;
+  const tvaAmt=grand*tvaPct;
+  const tvaLabel=document.getElementById('tva').value;
   html+=`<tr class="rgt">
     <td style="background:${C.gtBg}"></td>
     <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL GÉNÉRAL HT</span></td>
     <td style="background:${C.gtBg}"></td>
     <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="gt-val">${da(grand)}</td>
+  </tr>
+  <tr class="rtva">
+    <td style="background:${C.gtBg}"></td>
+    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" id="tva-label" style="color:${C.gtFg}">TVA (${tvaLabel}%)</span></td>
+    <td style="background:${C.gtBg}"></td>
+    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg}" id="tva-val">${da(tvaAmt)}</td>
+  </tr>
+  <tr class="rttc">
+    <td style="background:${C.gtBg}"></td>
+    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL TTC</span></td>
+    <td style="background:${C.gtBg}"></td>
+    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="ttc-val">${da(grand+tvaAmt)}</td>
   </tr>`;
 
   document.getElementById('body').innerHTML=html;
@@ -965,8 +1046,11 @@ function doExport(){
       subStk2.push({id:r.id,desig:r.desig,level:lv});
       const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
     } else if(r.type==='art'){
-      const t=artTotal(r);const row=[n,r.desig,r.unite];
-      if(mode==='DQE')row.push(num(r.qty));row.push(num(r.pu),t);data.push(row);
+      const hasKids=artHasSubarts(r.id);
+      const t=hasKids?artParentTotal(r):artTotal(r);
+      const row=[n,r.desig,hasKids?'':r.unite];
+      if(mode==='DQE')row.push(hasKids?'':num(r.qty));
+      row.push(hasKids?'':num(r.pu),t);data.push(row);
     } else if(r.type==='subart'){
       const t=artTotal(r);const row=[letter,r.desig,r.unite];
       if(mode==='DQE')row.push(num(r.qty));row.push(num(r.pu),t);data.push(row);
@@ -976,13 +1060,14 @@ function doExport(){
   });
   pst2();pct2();
 
-  const grand=rows.filter(r=>r.type==='art'||r.type==='subart').reduce((s,r)=>s+artTotal(r),0);
+  const grand=grandTotal();
   const tvaPct=num(document.getElementById('tva').value)/100;
+  const tvaAmt=grand*tvaPct;
   data.push([]);
   const mk=(l,v)=>{const r=['',l,''];if(mode==='DQE')r.push('');r.push('',v);return r;};
   data.push(mk('TOTAL GÉNÉRAL HT',grand));
-  data.push(mk('TVA '+document.getElementById('tva').value+'%',grand*tvaPct));
-  data.push(mk('TOTAL TTC',grand+grand*tvaPct));
+  data.push(mk('TVA '+document.getElementById('tva').value+'%',tvaAmt));
+  data.push(mk('TOTAL TTC',grand+tvaAmt));
 
   const ws=XLSX.utils.aoa_to_sheet(data);
   ws['!cols']=[{wch:10},{wch:55},{wch:6},...(mode==='DQE'?[{wch:10}]:[]),{wch:14},{wch:16}];

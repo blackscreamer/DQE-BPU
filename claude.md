@@ -75,9 +75,12 @@ Chapitre I
 
 **Règle importante** : si un article (`art`) a des sous-articles (`subart`) qui le suivent immédiatement, les colonnes U / Quantité / P.U. / Montant de l'article parent sont **laissées vides** (fonction `artHasSubarts(id)`).
 
+**Règle totaux chapitre/sous-chapitre** : la ligne titre (`chap`, `sub`) a sa dernière `<td>` **vide** (aucun id, aucune valeur). Les totaux apparaissent uniquement dans les lignes séparées `rts`/`rtc` générées par `subTotRow()`/`chapTotRow()` à la fin de chaque groupe.
+
 Fonction : `computeTotals()` → retourne `{chapT:{id:total}, subT:{id:total}}`
-- Chaque `subT[id]` = somme de tous art/subart directement dans ce sous-chapitre
+- Chaque `subT[id]` = somme des art du sous-chapitre (les subart appartenant à un art parent ne sont **pas** recomptés)
 - Les sous-chapitres imbriqués remontent vers les parents via un `subStack`
+- `grandTotal()` → total général HT sans double-comptage
 
 ---
 
@@ -196,9 +199,11 @@ Format JSON (version `v:5`) :
 | `buildNums()` | Calcule la numérotation de toutes les lignes |
 | `buildVisibility()` | Détermine les lignes masquées (collapse) |
 | `computeTotals()` | Calcule chapT et subT |
-| `artTotal(r)` | Retourne le montant d'un art/subart |
-| `artHasSubarts(id)` | Vrai si l'art a des subart qui suivent |
-| `lastUniteBefore(idx)` | Unité héritée pour nouvelle ligne |
+| `grandTotal()` | Total général HT sans double-comptage (art parent compte ses subart) |
+| `artTotal(r)` | Retourne le montant unitaire d'un art/subart (qty×pu ou pu seul en BPU) |
+| `artHasSubarts(id)` | Vrai si l'art a des subart qui le suivent immédiatement |
+| `artParentTotal(r)` | Somme des subart d'un art parent |
+| `lastUniteBefore(idx)` | Unité héritée pour nouvelle ligne (remonte jusqu'au premier art/subart précédent) |
 | `insertIdx()` | Index d'insertion (après sélection) |
 | `selectRow(id,tr,e)` | Sélectionne une ligne |
 | `addRow(type,level)` | Ajoute une ligne |
@@ -236,11 +241,12 @@ Format JSON (version `v:5`) :
 
 ---
 
-## 13. Points d'attention futurs
+## 13. Points d'attention
 
-- **Chapitre/sous-chapitre** : `colspan="5"` dans la ligne (pas de colonne total dans la ligne titre)
-- **Article avec sous-articles** : détecter `artHasSubarts()` avant de render les colonnes numériques
-- **Couleurs sur inputs** : toujours utiliser `-webkit-text-fill-color` + `caret-color` + `!important`
+- **Chapitre/sous-chapitre** : la ligne titre a `colspan="4"` (désignation) + une `<td>` vide en fin — **aucun id ni valeur de total dans la ligne titre**
+- **Article avec sous-articles** : toujours appeler `artHasSubarts()` avant de render les colonnes U/Q/PU/Montant ; si vrai → cellules vides + `artParentTotal()` pour le montant
+- **Double-comptage** : `computeTotals()` et `grandTotal()` ignorent les `subart` dont le parent `art` est déjà compté
+- **Couleurs sur inputs** : toujours utiliser `-webkit-text-fill-color` + `caret-color` + `!important` (sinon le texte est invisible sur fond coloré)
 - **Numérotation sous-chapitre** : globale et continue, ne pas remettre à 0 lors d'un nouveau chapitre
-- **Totaux** : injectés en tant que lignes séparées (`rts`, `rtc`) APRÈS le groupe, pas dans la ligne titre
-- **Impression** : `print-color-adjust: exact` indispensable pour préserver les fonds colorés
+- **Totaux** : lignes séparées (`rts`, `rtc`) APRÈS le groupe, puis `rgt` / `rtva` / `rttc` en bas du tableau
+- **Impression** : `print-color-adjust: exact` indispensable pour préserver les fonds colorés ; TVA et TTC sont dans le tableau (pas dans le footer div) → visibles à l'impression automatiquement

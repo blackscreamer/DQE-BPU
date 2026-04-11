@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DQE / BPU Pro</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ═══ DOCUMENT FONT ═══ */
+:root{ --F:'Times New Roman',Times,serif; --SZ:11pt; }
+
+/* ═══ PAGE LAYOUT ═══ */
+body { background: #d0d0d0; font-family: var(--F); font-size: var(--SZ); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+#wrap { flex: 1; overflow: auto; padding: 14px; }
+
+/* ═══ DOCUMENT ═══ */
+#doc { background: #fff; max-width: 1000px; margin: 0 auto; border: 1px solid #999; padding: 14px 16px 22px; box-shadow: 0 2px 14px rgba(0,0,0,.2); }
+#doc-hdr { text-align: center; margin-bottom: 10px; }
+.hdr-line { width: 100%; text-align: center; border: none; outline: none; background: transparent; font-family: var(--F); color: #000; line-height: 1.7; display: block; }
+.hdr-line.t1 { font-size: 13pt; font-weight: bold; text-transform: uppercase; text-decoration: underline; }
+.hdr-line.t2 { font-size: 11pt; font-weight: bold; text-transform: uppercase; }
+.hdr-line::placeholder { color: #bbb; font-weight: normal; text-decoration: none; text-transform: none; }
+.doc-band { margin: 8px 0 0; border: 2px solid #000; padding: 5px; text-align: center; font-weight: bold; font-size: 12pt; text-transform: uppercase; }
+
+/* ═══ TABLE ═══ */
+#tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+col.cn { width: 70px; }
+col.cd { width: auto; } /* Designation takes remaining space */
+col.cu { width: 46px; }
+/* Quantity and Price columns will be auto-sized by JS, but we set min-widths here */
+col.cq { width: 82px; min-width: 82px; }
+col.cp { width: 92px; min-width: 92px; }
+col.ct { width: 92px; min-width: 92px; }
+
+thead th { border: 1px solid #000; padding: 5px 4px; text-align: center; font-family: var(--F); font-size: 10pt; font-weight: bold; text-transform: uppercase; background: #d9d9d9; color: #000; vertical-align: middle; }
+tbody td { border: 1px solid #000; padding: 0; vertical-align: middle; color: #000; }
+
+input.di, textarea.di { display: block; width: 100%; padding: 5px 6px; border: none; outline: none; background: transparent; font-family: var(--F); font-size: var(--SZ); color: #000; }
+textarea.di { resize: none; overflow: hidden; }
+input.di:focus, textarea.di:focus { background: #fffbe6; outline: 2px solid #c8a000; outline-offset: -2px; }
+input.ni { display: block; width: 100%; padding: 5px; border: none; outline: none; background: transparent; font-family: var(--F); font-size: var(--SZ); color: #000; text-align: right; }
+input.ni:focus { background: #fffbe6; outline: 2px solid #c8a000; outline-offset: -2px; }
+select.ui { display: block; width: 100%; padding: 5px 2px; border: none; outline: none; background: transparent; text-align: center; color: #000; font-family: var(--F); font-size: var(--SZ); cursor: pointer; }
+.nc { text-align: center; padding: 4px 3px; font-family: var(--F); font-size: 10pt; white-space: nowrap; color: #000; }
+.tc { text-align: right; padding: 5px 8px; font-family: var(--F); font-size: var(--SZ); white-space: nowrap; }
+.tc.v { font-weight: bold; }
+
+.tot-label { display: block; padding: 5px 8px; font-weight: bold; text-transform: uppercase; font-family: var(--F); font-size: var(--SZ); }
+.tot-val { font-weight: bold; text-align: right; padding: 5px 10px; font-family: var(--F); font-size: var(--SZ); white-space: nowrap; }
+
+tr.sel-row td { outline: 2px solid #1a56a0; outline-offset: -1px; }
+.dragging { opacity: .3; outline: 2px dashed #1a56a0; }
+.dov-top td { border-top: 3px solid #1a56a0 !important; }
+.dov-bot td { border-bottom: 3px solid #1a56a0 !important; }
+
+/* ═══ FLOATING ROW CONTROLS ═══ */
+#float-ctrl {
+  position: fixed; z-index: 500;
+  background: #1e1e1e; border: 1px solid #444; border-radius: 6px;
+  padding: 3px 5px; box-shadow: 0 3px 12px rgba(0,0,0,.45);
+  display: flex; gap: 3px; align-items: center; pointer-events: auto;
+}
+#float-ctrl.hidden { display: none !important; }
+.fc-btn { background: none; border: 1px solid #444; padding: 3px 8px; border-radius: 4px; color: #ccc; font-size: 10pt; cursor: pointer; line-height: 1; white-space: nowrap; font-family: var(--F); }
+.fc-btn:hover { background: #4a6a9a; color: #fff; border-color: #7aacdd; }
+.fc-btn.del:hover { background: #7a1010; color: #fff; border-color: #c03030; }
+.fc-btn.dup:hover { background: #2a5a2a; color: #fff; border-color: #5aaa5a; }
+.fc-sep { width: 1px; height: 18px; background: #444; }
+.drag-h { cursor: grab; color: #888; font-size: 14pt; padding: 0 4px; user-select: none; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; line-height: 1.4; }
+.drag-h:active { cursor: grabbing; background: #3a3a3a; }
+
+/* ═══ TOOLBAR TWEAKS ═══ */
+#appbar { background: #1e2535 !important; }
+.navbar-brand { font-family: var(--F); font-size: 13pt; font-weight: bold; letter-spacing: .5px; }
+.tva-inp { width: 56px; padding: 3px 6px; border: 1px solid #495057; border-radius: 4px; background: #2d3748; color: #e2e8f0; text-align: right; font-size: 11pt; font-family: var(--F); }
+.tva-inp:focus { outline: none; border-color: #4a90d9; }
+.toolbar-sep { width: 1px; height: 24px; background: #444; margin: 0 2px; flex-shrink: 0; }
+
+/* ═══ MODE TOGGLE ═══ */
+.mode-grp { background: #111; border-radius: 5px; padding: 2px; display: flex; gap: 2px; }
+.mbtn { padding: 3px 14px; border: none; border-radius: 4px; font-weight: bold; font-size: 10pt; color: #888; background: transparent; cursor: pointer; font-family: var(--F); }
+.mbtn.on { background: #1a56a0; color: #fff; }
+.mbtn:hover:not(.on) { color: #fff; }
+
+/* ═══ FOOTER ═══ */
+#foot { background: #1e2535; border-top: 2px solid #111; padding: 6px 16px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; flex-shrink: 0; }
+.fi { display: flex; flex-direction: column; gap: 1px; }
+.fl { font-size: 7.5pt; font-weight: bold; color: #7a90b0; letter-spacing: 1px; text-transform: uppercase; font-family: var(--F); }
+.fv { font-size: 13pt; font-weight: bold; color: #fff; font-family: var(--F); }
+.fv.big { color: #6fd86f; }
+.fsep { width: 1px; height: 28px; background: #3a4a5a; }
+
+/* ═══ OFFCANVAS COLOR PICKER ═══ */
+.offcanvas { max-width: 280px; }
+.offcanvas-header { background: #1e2535; color: #fff; }
+.offcanvas-header .btn-close { filter: invert(1); }
+.offcanvas-body { background: #f8f9fa; }
+.cp-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid #e9ecef; }
+.cp-row:last-of-type { border-bottom: none; }
+.cp-row label { font-size: 11px; color: #333; flex: 1; font-family: sans-serif; }
+.cp-row input[type=color] { width: 32px; height: 26px; border: 1px solid #ccc; background: none; cursor: pointer; border-radius: 3px; padding: 2px; }
+
+/* ═══ AUTOSAVE INDICATOR ═══ */
+#save-ind { font-size: 9pt; color: #888; transition: color 0.3s; }
+#save-ind.saved { color: #6fd86f; }
+#save-ind.error { color: #ff6b6b; }
+
+/* ═══ PRINT ═══ */
+@media print {
+  #appbar, #foot, #nf, #float-ctrl, .offcanvas, .offcanvas-backdrop { display: none !important; }
+  body, #wrap { height: auto; overflow: visible; background: #fff; }
+  #doc { box-shadow: none; border: none; padding: 0; max-width: 100%; }
+  tr.sel-row td { outline: none; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+/* ═══ TOAST ═══ */
+#toast-ct { position: fixed; bottom: 56px; right: 14px; z-index: 9999; }
+</style>
+</head>
+<body>
+
+<!-- ═══ APP BAR (Navbar) ═══ -->
+<nav id="appbar" class="navbar navbar-dark px-2 py-1" style="flex-shrink:0">
+  <div class="d-flex align-items-center gap-2 flex-wrap w-100">
+
+    <!-- Brand -->
+    <span class="navbar-brand me-1 mb-0" style="font-size:12pt">
+      <i class="bi bi-file-earmark-text-fill text-primary"></i> DQE / BPU
+    </span>
+
+    <div class="toolbar-sep"></div>
+    
+    <!-- Autosave Indicator -->
+    <span id="save-ind"><i class="bi bi-cloud-check"></i> Auto</span>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Mode toggle -->
+    <div class="mode-grp">
+      <button class="mbtn on" id="bdqe" onclick="setMode('DQE')">DQE</button>
+      <button class="mbtn"    id="bbpu" onclick="setMode('BPU')">BPU</button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Add dropdown -->
+    <div class="dropdown">
+      <button class="btn btn-sm btn-primary fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-plus-lg"></i> Ajouter
+      </button>
+      <ul class="dropdown-menu dropdown-menu-dark" style="font-family:var(--F);font-size:10pt">
+        <li><button class="dropdown-item" onclick="addRow('chap')"><i class="bi bi-bookmark-fill text-danger me-2"></i>Chapitre</button></li>
+        <li><hr class="dropdown-divider"/></li>
+        <li><button class="dropdown-item" onclick="addRow('sub',1)"><i class="bi bi-chevron-right text-warning me-2"></i>Sous-chapitre niv. 1</button></li>
+        <li><button class="dropdown-item" onclick="addRow('sub',2)"><i class="bi bi-chevron-double-right text-info me-2"></i>Sous-chapitre niv. 2</button></li>
+        <li><button class="dropdown-item" onclick="addRow('sub',3)"><i class="bi bi-chevron-bar-right text-success me-2"></i>Sous-chapitre niv. 3</button></li>
+        <li><hr class="dropdown-divider"/></li>
+        <li><button class="dropdown-item" onclick="addRow('art')"><i class="bi bi-file-text me-2"></i>Article <kbd class="ms-1">+</kbd></button></li>
+        <li><button class="dropdown-item" onclick="addRow('subart')"><i class="bi bi-file-earmark me-2"></i>Sous-article (a, b, c…)</button></li>
+        <li><button class="dropdown-item" onclick="addRow('blank')"><i class="bi bi-dash me-2"></i>Ligne vide / description</button></li>
+      </ul>
+    </div>
+    
+    <!-- Undo/Redo -->
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary" onclick="undo()" title="Annuler (Ctrl+Z)">
+      <i class="bi bi-arrow-counterclockwise"></i>
+    </button>
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary" onclick="redo()" title="Rétablir (Ctrl+Y)">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
+
+    <!-- Collapse buttons -->
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary" onclick="collapseAll(true)" title="Réduire tout">
+      <i class="bi bi-arrows-collapse"></i> <span class="d-none d-lg-inline">Réduire</span>
+    </button>
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary" onclick="collapseAll(false)" title="Développer tout">
+      <i class="bi bi-arrows-expand"></i> <span class="d-none d-lg-inline">Développer</span>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Colors -->
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary"
+            data-bs-toggle="offcanvas" data-bs-target="#colorpop" onclick="syncColorPicker()"
+            title="Couleurs">
+      <i class="bi bi-palette-fill"></i> <span class="d-none d-lg-inline">Couleurs</span>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- File actions -->
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary" onclick="saveFile(false)" title="Sauvegarder (Écraser)">
+      <i class="bi bi-floppy-fill"></i> <span class="d-none d-lg-inline">Sauvegarder</span>
+    </button>
+    
+    <button class="btn btn-sm btn-outline-secondary text-light border-secondary" onclick="saveFile(true)" title="Sauvegarder sous...">
+      <i class="bi bi-file-earmark-plus"></i> <span class="d-none d-lg-inline">Nouveau Fichier</span>
+    </button>
+
+    <label class="btn btn-sm btn-outline-secondary text-light border-secondary mb-0" style="cursor:pointer" title="Ouvrir">
+      <i class="bi bi-folder2-open"></i> <span class="d-none d-lg-inline">Ouvrir</span>
+      <input type="file" accept=".json" onchange="openFile(this)" style="display:none"/>
+    </label>
+    
+    <!-- NEW: Import Excel -->
+    <label class="btn btn-sm btn-outline-info text-light border-info mb-0" style="cursor:pointer" title="Importer Excel">
+      <i class="bi bi-file-earmark-spreadsheet"></i> <span class="d-none d-lg-inline">Import XLS</span>
+      <input type="file" accept=".xlsx,.xls" onchange="importExcel(this)" style="display:none"/>
+    </label>
+
+    <button class="btn btn-sm btn-outline-success" onclick="doExport()" title="Exporter Excel">
+      <i class="bi bi-file-earmark-excel-fill"></i> <span class="d-none d-lg-inline">Excel</span>
+    </button>
+    <button class="btn btn-sm btn-outline-light" onclick="window.print()" title="Imprimer">
+      <i class="bi bi-printer-fill"></i> <span class="d-none d-lg-inline">Imprimer</span>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- TVA -->
+    <div class="d-flex align-items-center gap-1">
+      <span style="font-size:9pt;color:#7a90b0;white-space:nowrap">TVA %</span>
+      <input class="tva-inp" id="tva" type="number" value="19" min="0" max="100" step="0.5" oninput="handleTvaChange()"/>
+    </div>
+
+  </div>
+</nav>
+
+<!-- ═══ FLOATING ROW CONTROLS ═══ -->
+<div id="float-ctrl" class="hidden">
+  <span class="drag-h" id="fc-drag" title="Déplacer">⠿</span>
+  <div class="fc-sep"></div>
+  <button class="fc-btn dup" onclick="dupSelected()" title="Dupliquer">⧉ Dupliquer</button>
+  <button class="fc-btn del" onclick="delSelected()" title="Supprimer">✕ Supprimer</button>
+</div>
+
+<!-- ═══ COLOR PICKER (Offcanvas) ═══ -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="colorpop">
+  <div class="offcanvas-header">
+    <h6 class="offcanvas-title mb-0"><i class="bi bi-palette-fill me-2"></i>Couleurs par type</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <p class="text-muted mb-3" style="font-size:11px">Fond / Texte pour chaque type de ligne</p>
+
+    <div class="cp-row"><label>Chapitre</label>
+      <input type="color" id="cc-chap-bg" value="#c00000" oninput="applyColors()"/>
+      <input type="color" id="cc-chap-fg" value="#ffffff" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Sous-chap niv.1</label>
+      <input type="color" id="cc-sub1-bg" value="#ffff00" oninput="applyColors()"/>
+      <input type="color" id="cc-sub1-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Sous-chap niv.2</label>
+      <input type="color" id="cc-sub2-bg" value="#bdd7ee" oninput="applyColors()"/>
+      <input type="color" id="cc-sub2-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Sous-chap niv.3</label>
+      <input type="color" id="cc-sub3-bg" value="#e2efda" oninput="applyColors()"/>
+      <input type="color" id="cc-sub3-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Article</label>
+      <input type="color" id="cc-art-bg" value="#ffffff" oninput="applyColors()"/>
+      <input type="color" id="cc-art-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Sous-article</label>
+      <input type="color" id="cc-sa-bg"  value="#f5f5f5" oninput="applyColors()"/>
+      <input type="color" id="cc-sa-fg"  value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Total sous-chapitre</label>
+      <input type="color" id="cc-ts-bg" value="#c6efce" oninput="applyColors()"/>
+      <input type="color" id="cc-ts-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Total chapitre</label>
+      <input type="color" id="cc-tc-bg" value="#ffff00" oninput="applyColors()"/>
+      <input type="color" id="cc-tc-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+    <div class="cp-row"><label>Total général</label>
+      <input type="color" id="cc-gt-bg" value="#ffff00" oninput="applyColors()"/>
+      <input type="color" id="cc-gt-fg" value="#000000" oninput="applyColors()"/>
+    </div>
+
+    <button class="btn btn-sm btn-secondary w-100 mt-3" data-bs-dismiss="offcanvas">
+      <i class="bi bi-check-lg me-1"></i>Fermer
+    </button>
+  </div>
+</div>
+
+<!-- ═══ DOCUMENT ═══ -->
+<div id="wrap">
+<div id="doc">
+  <div id="doc-hdr">
+    <input class="hdr-line t1" id="hl1" type="text" placeholder="TITRE DU PROJET…"/>
+    <input class="hdr-line t2" id="hl2" type="text" placeholder="Sous-titre ligne 2…"/>
+    <input class="hdr-line t2" id="hl3" type="text" placeholder="Sous-titre ligne 3…"/>
+    <div class="doc-band" id="doc-band">DETAIL QUANTITATIF ESTIMATIF</div>
+  </div>
+
+  <table id="tbl">
+    <colgroup>
+      <col class="cn"/><col class="cd"/><col class="cu"/>
+      <col class="cq"/><col class="cp"/><col class="ct"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>DESIGNATION DES OUVRAGES</th>
+        <th>U</th>
+        <th id="th-qty">Quantité</th>
+        <th>PRIX U HT</th>
+        <th id="th-tot">MONTANT HT</th>
+      </tr>
+    </thead>
+    <tbody id="body"></tbody>
+  </table>
+</div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<div id="foot">
+  <div class="fi"><div class="fl">Total HT</div><div class="fv big" id="fht">0,00 DA</div></div>
+  <div class="fsep"></div>
+  <div class="fi"><div class="fl">TVA <span id="fpct">19</span>%</div><div class="fv" id="ftva">0,00 DA</div></div>
+  <div class="fsep"></div>
+  <div class="fi"><div class="fl">Total TTC</div><div class="fv big" id="fttc">0,00 DA</div></div>
+  <div class="fsep"></div>
+  <div class="fi"><div class="fl">Articles</div><div class="fv" id="fcnt">0</div></div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div id="toast-ct" class="toast-container">
+  <div id="nf-toast" class="toast text-bg-dark border-0 align-items-center" role="alert"
+       data-bs-autohide="true" data-bs-delay="2400">
+    <div class="d-flex">
+      <div class="toast-body fw-bold" id="nf-msg" style="font-family:var(--F);font-size:10pt"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════
+   1. CORE HELPERS & STATE
+═══════════════════════════════════════════ */
+const uid  = ()=>'r'+(nid++);
+const num  = v=>parseFloat(String(v||0).replace(',','.'))||0;
+const da   = n=>n.toLocaleString('fr-DZ',{minimumFractionDigits:2,maximumFractionDigits:2})+' DA';
+const esc  = s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const LETTERS='abcdefghijklmnopqrstuvwxyz';
+const UNITS=['M²','M³','ML','U','Ens','Kg','T','H','J','Forfait','Lot','M','Ml'];
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+function toRoman(n){ return ROMAN[n-1]||String(n); }
+
+let rows   = [];
+let mode   = 'DQE';
+let nid    = 1;
+let selId  = null;
+let fileHandle = null; // For File System API
+
+let C = {
+  chapBg:'#c00000', chapFg:'#ffffff',
+  sub1Bg:'#ffff00', sub1Fg:'#000000',
+  sub2Bg:'#bdd7ee', sub2Fg:'#000000',
+  sub3Bg:'#e2efda', sub3Fg:'#000000',
+  artBg: '#ffffff',  artFg: '#000000',
+  saBg:  '#f5f5f5',  saFg:  '#000000',
+  tsBg:  '#c6efce',  tsFg:  '#000000',
+  tcBg:  '#ffff00',  tcFg:  '#000000',
+  gtBg:  '#ffff00',  gtFg:  '#000000',
+};
+
+/* ═══════════════════════════════════════════
+   2. HISTORY (UNDO/REDO)
+═══════════════════════════════════════════ */
+let history = [];
+let hIdx = -1;
+const MAX_HIST = 50;
+
+function snapshot() {
+    history = history.slice(0, hIdx + 1);
+    history.push(JSON.stringify(rows));
+    hIdx++;
+    if(history.length > MAX_HIST) { history.shift(); hIdx--; }
+}
+
+function undo() {
+    if(hIdx > 0) {
+        hIdx--;
+        rows = JSON.parse(history[hIdx]);
+        render();
+        notif("↶ Annulé");
+        triggerAutosave();
+    }
+}
+
+function redo() {
+    if(hIdx < history.length - 1) {
+        hIdx++;
+        rows = JSON.parse(history[hIdx]);
+        render();
+        notif("↷ Rétabli");
+        triggerAutosave();
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+    if(e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+});
+
+/* ═══════════════════════════════════════════
+   3. FILE SYSTEM & AUTOSAVE
+═══════════════════════════════════════════ */
+const STORAGE_KEY = 'dqe_app_v3_autosave';
+let saveTimeout;
+
+function getSaveData() {
+    return {
+        v:6, rows, mode, nid, C,
+        tva: document.getElementById('tva').value,
+        l1: document.getElementById('hl1').value,
+        l2: document.getElementById('hl2').value,
+        l3: document.getElementById('hl3').value
+    };
+}
+
+function saveLocal() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(getSaveData()));
+}
+
+function loadLocal() {
+    const str = localStorage.getItem(STORAGE_KEY);
+    if(str) {
+        try {
+            const d = JSON.parse(str);
+            rows = d.rows || [];
+            nid = d.nid || 1;
+            if(d.C) C = d.C;
+            if(d.mode) setMode(d.mode);
+            document.getElementById('tva').value = d.tva || 19;
+            document.getElementById('hl1').value = d.l1 || '';
+            document.getElementById('hl2').value = d.l2 || '';
+            document.getElementById('hl3').value = d.l3 || '';
+            return true;
+        } catch(e) { console.error("Corrupted local storage"); return false; }
+    }
+    return false;
+}
+
+// 5-minute Autosave for Disk File (if supported)
+const AUTOSAVE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+setInterval(async () => {
+    if(fileHandle) {
+        try {
+            await saveFile(false); // Silent save
+            const ind = document.getElementById('save-ind');
+            ind.classList.add('saved');
+            ind.innerHTML = '<i class="bi bi-cloud-check"></i> Auto-saved';
+            setTimeout(() => {
+                ind.classList.remove('saved');
+                ind.innerHTML = '<i class="bi bi-cloud-check"></i> Auto';
+            }, 2000);
+        } catch(e) {
+            console.log("Autosave failed", e);
+        }
+    }
+}, AUTOSAVE_INTERVAL);
+
+// Debounced LocalStorage save
+function triggerAutosave() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveLocal, 500); // Quick save to browser
+}
+
+// --- FILE SYSTEM API (Save Same File) ---
+async function saveFile(saveAs) {
+    const data = getSaveData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    
+    // Browser support check
+    const supportsFS = 'showSaveFilePicker' in window;
+
+    if (!supportsFS || !fileHandle || saveAs) {
+        // Create new file or fallback
+        try {
+            if (supportsFS) {
+                const options = {
+                    suggestedName: (document.getElementById('hl1').value || 'devis') + '.json',
+                    types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }]
+                };
+                fileHandle = await window.showSaveFilePicker(options);
+            } else {
+                // Fallback for Firefox/Safari
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = (data.l1 || 'devis').replace(/\s+/g,'_').substring(0,40)+'.json';
+                a.click();
+                notif('✓ Fichier téléchargé');
+                return;
+            }
+        } catch(e) {
+            console.log('Save cancelled');
+            return;
+        }
+    }
+
+    // Write to fileHandle
+    try {
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        notif('✓ Fichier sauvegardé');
+    } catch(e) {
+        console.error(e);
+        notif('⚠ Erreur de sauvegarde');
+    }
+}
+
+async function openFile(inp) {
+    const f = inp.files[0];
+    if(!f) return;
+    
+    // Try to get handle (Chrome/Edge)
+    if ('showOpenFilePicker' in window) {
+        try {
+            // Note: inp.files is a FileList, not a FileSystemHandle. 
+            // To keep 'Save Same File' functionality, we'd ideally use showOpenFilePicker API
+            // But for simplicity with the <input> tag, we just read the file.
+            // We lose the handle if we use the input tag. 
+            // Ideally, we should change "Open" to use a button + showOpenFilePicker.
+        } catch(e) {}
+    }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const d = JSON.parse(e.target.result);
+            if(!d.rows) throw 0;
+            rows = d.rows; nid = d.nid || 999;
+            if(d.C) C = d.C;
+            document.getElementById('hl1').value=d.l1||'';
+            document.getElementById('hl2').value=d.l2||'';
+            document.getElementById('hl3').value=d.l3||'';
+            document.getElementById('tva').value=d.tva||19;
+            setMode(d.mode||'DQE');
+            render(); 
+            snapshot();
+            saveLocal();
+            notif('✓ Projet chargé');
+        } catch { notif('⚠ Fichier invalide'); }
+    };
+    reader.readAsText(f);
+    inp.value = '';
+}
+
+/* ═══════════════════════════════════════════
+   4. MODE & UI LOGIC
+═══════════════════════════════════════════ */
+function setMode(m){
+  mode=m;
+  document.getElementById('bdqe').className='mbtn'+(m==='DQE'?' on':'');
+  document.getElementById('bbpu').className='mbtn'+(m==='BPU'?' on':'');
+  document.getElementById('th-qty').style.visibility=m==='BPU'?'hidden':'visible';
+  document.getElementById('doc-band').textContent=
+    m==='DQE'?'DETAIL QUANTITATIF ESTIMATIF':'BORDEREAU DES PRIX UNITAIRES';
+  render();
+}
+
+function handleTvaChange() {
+    recalc();
+    triggerAutosave();
+}
+
+/* ═══════════════════════════════════════════
+   5. SELECTION & INTERACTIONS
+═══════════════════════════════════════════ */
+function selectRow(id,trEl,e){
+  if(e&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;
+  selId=id;
+  document.querySelectorAll('tr.sel-row').forEach(t=>t.classList.remove('sel-row'));
+  if(trEl)trEl.classList.add('sel-row');
+  positionFloatCtrl(trEl);
+}
+
+function positionFloatCtrl(trEl){
+  const fc=document.getElementById('float-ctrl');
+  if(!trEl){fc.classList.add('hidden');return;}
+  fc.classList.remove('hidden');
+  const rect=trEl.getBoundingClientRect();
+  const top=rect.top+rect.height/2-16;
+  let left=rect.right+6;
+  if(left+200>window.innerWidth)left=rect.right-210;
+  fc.style.top=Math.max(44,top)+'px';
+  fc.style.left=Math.max(4,left)+'px';
+  const dh=document.getElementById('fc-drag');
+  dh.ondragstart=null;
+  dh.draggable=true;
+  dh.ondragstart=(ev)=>{
+    ev.dataTransfer.effectAllowed='move';
+    dragId=selId;
+    setTimeout(()=>{if(trEl)trEl.classList.add('dragging');},0);
+  };
+}
+
+function clearSelection(){
+  selId=null;
+  document.querySelectorAll('tr.sel-row').forEach(t=>t.classList.remove('sel-row'));
+  document.getElementById('float-ctrl').classList.add('hidden');
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#tbl')&&!e.target.closest('#float-ctrl')&&
+     !e.target.closest('#appbar')&&!e.target.closest('#colorpop'))
+    clearSelection();
+},{passive:true});
+
+/* ═══════════════════════════════════════════
+   6. ADD / DEL / DUP
+═══════════════════════════════════════════ */
+function insertIdx(){
+  if(selId===null)return rows.length;
+  const idx=rows.findIndex(r=>r.id===selId);
+  return idx<0?rows.length:idx+1;
+}
+
+function lastUniteBefore(insertIdx){
+  for(let i=insertIdx-1;i>=0;i--){
+    const r=rows[i];
+    if(r.type==='art'||r.type==='subart')return r.unite;
+  }
+  return 'M²';
+}
+
+function addRow(type,level){
+  snapshot(); 
+  const id=uid();
+  let obj;
+  const idx=insertIdx();
+  if(type==='chap')   obj={type,id,desig:'',collapsed:false};
+  if(type==='sub')    obj={type,id,desig:'',level:level||1,collapsed:false};
+  if(type==='art')    obj={type,id,desig:'',unite:lastUniteBefore(idx),qty:'',pu:''};
+  if(type==='subart') obj={type,id,desig:'',unite:lastUniteBefore(idx),qty:'',pu:''};
+  if(type==='blank')  obj={type,id,desig:''};
+  rows.splice(idx,0,obj);
+  selId=id;
+  render();
+  setTimeout(()=>{
+    const tr=document.getElementById('ro-'+id);
+    if(tr){
+      tr.classList.add('sel-row');
+      positionFloatCtrl(tr);
+      const inp=tr.querySelector('input.di,textarea.di');
+      if(inp){inp.focus();inp.select();}
+    }
+  },35);
+  triggerAutosave();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='+'&&!e.ctrlKey&&!e.metaKey&&
+     e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){
+    e.preventDefault();addRow('art');
+  }
+});
+
+function delSelected(){
+  if(!selId)return;
+  snapshot(); 
+  const idx=rows.findIndex(r=>r.id===selId);
+  if(idx<0)return;
+  const block=extractBlock(idx);
+  rows.splice(idx,block.length);
+  selId=null;
+  document.getElementById('float-ctrl').classList.add('hidden');
+  render();
+  triggerAutosave();
+  notif('✕ Supprimé');
+}
+
+function dupSelected(){
+  if(!selId)return;
+  snapshot(); 
+  const idx=rows.findIndex(r=>r.id===selId);
+  if(idx<0)return;
+  const newId=uid();
+  const block=extractBlock(idx);
+  const cloned=block.map((r,bi)=>({...r,id:bi===0?newId:uid()}));
+  rows.splice(idx+block.length,0,...cloned);
+  selId=newId;
+  render();
+  setTimeout(()=>{
+    const tr=document.getElementById('ro-'+selId);
+    if(tr){tr.classList.add('sel-row');positionFloatCtrl(tr);}
+  },35);
+  triggerAutosave();
+  notif('✓ Dupliqué');
+}
+
+function upd(id, field, val) {
+    const r = rows.find(r => r.id === id);
+    if (r) {
+        r[field] = val;
+        recalc();
+        triggerAutosave();
+    }
+}
+
+/* ═══════════════════════════════════════════
+   7. COLLAPSE & VISIBILITY
+═══════════════════════════════════════════ */
+function toggleCollapse(id,e){
+  e&&e.stopPropagation();
+  const r=rows.find(r=>r.id===id);
+  if(r){r.collapsed=!r.collapsed; render(); triggerAutosave(); }
+}
+function collapseAll(v){
+  rows.filter(r=>r.type==='chap'||r.type==='sub').forEach(r=>r.collapsed=v);
+  render();
+  triggerAutosave();
+}
+function buildVisibility(){
+  const hidden=new Set();
+  let collapsedChap=false,collapsedSubLv=null;
+  rows.forEach((r,i)=>{
+    if(r.type==='chap'){collapsedChap=r.collapsed;collapsedSubLv=null;return;}
+    if(r.type==='sub'){
+      if(collapsedChap){hidden.add(i);collapsedSubLv=null;return;}
+      if(collapsedSubLv!==null&&r.level<=collapsedSubLv)collapsedSubLv=null;
+      if(collapsedSubLv!==null){hidden.add(i);return;}
+      if(r.collapsed)collapsedSubLv=r.level;
+      return;
+    }
+    if(collapsedChap||collapsedSubLv!==null)hidden.add(i);
+  });
+  return hidden;
+}
+
+/* ═══════════════════════════════════════════
+   8. NUMBERING & TOTALS
+═══════════════════════════════════════════ */
+function buildNums(){
+  let chapN=0,subN=0,artN=0,saIdx=0;
+  const nums=[],letters=[];
+  rows.forEach(r=>{
+    if(r.type==='chap'){chapN++;artN=0;saIdx=0;nums.push(toRoman(chapN));letters.push('');}
+    else if(r.type==='sub'){subN++;artN=0;saIdx=0;nums.push(String(subN));letters.push('');}
+    else if(r.type==='art'){artN++;saIdx=0;const a=artN<10?'0'+artN:String(artN);nums.push(subN+'.'+a);letters.push('');}
+    else if(r.type==='subart'){nums.push('');letters.push(LETTERS[saIdx]||String(saIdx+1));saIdx++;}
+    else{nums.push('');letters.push('');}
+  });
+  return{nums,letters};
+}
+
+function artHasSubarts(id){
+  const idx=rows.findIndex(r=>r.id===id);
+  if(idx<0)return false;
+  for(let i=idx+1;i<rows.length;i++){
+    if(rows[i].type==='blank')continue;
+    return rows[i].type==='subart';
+  }
+  return false;
+}
+function artParentTotal(r){
+  const idx=rows.findIndex(x=>x.id===r.id);
+  let total=0;
+  for(let i=idx+1;i<rows.length;i++){
+    if(rows[i].type==='blank')continue;
+    if(rows[i].type!=='subart')break;
+    total+=artTotal(rows[i]);
+  }
+  return total;
+}
+function artTotal(r){
+  if(r.type!=='art'&&r.type!=='subart')return 0;
+  if(mode==='BPU')return num(r.pu);
+  return num(r.qty)*num(r.pu);
+}
+function computeTotals(){
+  const chapT={},subT={};
+  let ci=null,subStack=[];
+  rows.forEach(r=>{
+    if(r.type==='chap'){ci=r.id;chapT[ci]=0;subStack=[];}
+    else if(r.type==='sub'){
+      subStack=subStack.filter(s=>s.level<(r.level||1));
+      subStack.push({id:r.id,level:r.level||1});
+      subT[r.id]=0;
+    } else if(r.type==='art'){
+      const t=artHasSubarts(r.id)?artParentTotal(r):artTotal(r);
+      if(ci)chapT[ci]=(chapT[ci]||0)+t;
+      subStack.forEach(s=>{subT[s.id]=(subT[s.id]||0)+t;});
+    }
+  });
+  return{chapT,subT};
+}
+function grandTotal(){
+  return rows.reduce((s,r)=>{
+    if(r.type==='art'){
+      return s+(artHasSubarts(r.id)?artParentTotal(r):artTotal(r));
+    }
+    return s;
+  },0);
+}
+
+function recalc(){
+  const{chapT,subT}=computeTotals();
+  rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
+    const el=document.getElementById('at-'+r.id);if(!el)return;
+    const t=(r.type==='art'&&artHasSubarts(r.id))?0:artTotal(r);
+    el.textContent=t?da(t):'';
+    el.className='tc'+(t?' v':'');
+  });
+  Object.entries(subT).forEach(([id,t])=>{const el=document.getElementById('st-'+id);if(el)el.textContent=da(t);});
+  Object.entries(chapT).forEach(([id,t])=>{const el=document.getElementById('ct-'+id);if(el)el.textContent=da(t);});
+  
+  const grand=grandTotal();
+  const tvaPct=num(document.getElementById('tva').value)/100;
+  const tvaAmt=grand*tvaPct;
+  
+  document.getElementById('gt-val').textContent=da(grand);
+  document.getElementById('tva-val').textContent=da(tvaAmt);
+  document.getElementById('ttc-val').textContent=da(grand+tvaAmt);
+  document.getElementById('tva-label').textContent='TVA ('+document.getElementById('tva').value+'%)';
+  
+  document.getElementById('fht').textContent=da(grand);
+  document.getElementById('ftva').textContent=da(tvaAmt);
+  document.getElementById('fttc').textContent=da(grand+tvaAmt);
+  document.getElementById('fpct').textContent=document.getElementById('tva').value;
+  document.getElementById('fcnt').textContent=rows.filter(r=>r.type==='art').length;
+  
+  adjustColumns(); // Dynamic width adjustment
+}
+
+/* ═══════════════════════════════════════════
+   9. DYNAMIC COLUMN WIDTH
+═══════════════════════════════════════════ */
+function adjustColumns() {
+    // We measure the width needed for the largest number in the footer
+    // And apply it to the table columns
+    const cols = {
+        qty: document.querySelector('col.cq'),
+        pu: document.querySelector('col.cp'),
+        tot: document.querySelector('col.ct')
+    };
+
+    // Measure footer values
+    const fTot = document.getElementById('fttc');
+    const fHt = document.getElementById('fht');
+    
+    // Create temporary span to measure text
+    const span = document.createElement('span');
+    span.style.visibility = 'hidden';
+    span.style.position = 'absolute';
+    span.style.fontFamily = "'Times New Roman', Times, serif";
+    span.style.fontWeight = 'bold';
+    span.style.fontSize = '11pt';
+    span.style.padding = '0 10px'; // Cell padding
+    document.body.appendChild(span);
+
+    // Measure Total (largest number usually)
+    span.textContent = fTot.textContent;
+    let maxW = span.offsetWidth;
+    
+    // Add a bit of buffer for borders/padding
+    maxW += 10; 
+    
+    // Set Minimums
+    const minW = 75;
+    if(maxW < minW) maxW = minW;
+
+    // Apply to columns
+    // Note: In BPU mode, Quantity is hidden, handled by CSS
+    
+    // Price Unit usually shorter, but we can keep it reasonable
+    // Let's fix Unit Price to be slightly smaller than Total, or same
+    const puW = 90; // Fixed width for Unit Price is usually fine
+    
+    // Set widths
+    if(cols.pu) cols.pu.style.width = puW + 'px';
+    if(cols.tot) cols.tot.style.width = maxW + 'px';
+    
+    // Quantity Width
+    if(cols.qty) {
+        // Measure qty
+        span.style.fontWeight = 'normal';
+        // Find largest qty in rows? Too expensive. Just use a decent estimate.
+        const qtyW = 70;
+        cols.qty.style.width = qtyW + 'px';
+    }
+
+    document.body.removeChild(span);
+}
+
+/* ═══════════════════════════════════════════
+   10. RENDERER
+═══════════════════════════════════════════ */
+function ar(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+
+function render(){
+  const hidden=buildVisibility();
+  const{nums,letters}=buildNums();
+  const{chapT,subT}=computeTotals();
+  let html='';
+  let chapStk=[],subStk=[];
+
+  const subTotRow=(sub,vis)=>{
+    const h=vis?'':'style="display:none"';
+    return`<tr class="rts" data-ts="${sub.id}" ${h}>
+      <td style="background:${C.tsBg}"></td>
+      <td colspan="3" style="background:${C.tsBg}"><span class="tot-label" style="color:${C.tsFg}">Total ${esc(sub.desig||'')}</span></td>
+      <td style="background:${C.tsBg}"></td>
+      <td class="tot-val" style="background:${C.tsBg};color:${C.tsFg}" id="st-${sub.id}"></td>
+    </tr>`;
+  };
+  const chapTotRow=(chap)=>{
+    return`<tr class="rtc" data-tc="${chap.id}">
+      <td style="background:${C.tcBg}"></td>
+      <td colspan="3" style="background:${C.tcBg}"><span class="tot-label" style="color:${C.tcFg}">Total ${esc(chap.desig||'')}</span></td>
+      <td style="background:${C.tcBg}"></td>
+      <td class="tot-val" style="background:${C.tcBg};color:${C.tcFg}" id="ct-${chap.id}"></td>
+    </tr>`;
+  };
+
+  rows.forEach((r,i)=>{
+    const vis=!hidden.has(i);
+    const h=vis?'':'style="display:none"';
+    const n=nums[i],letter=letters[i];
+    const isSel=r.id===selId;
+    const selCls=isSel?' sel-row':'';
+
+    if(r.type==='chap'){
+      while(subStk.length){const s=subStk.pop();html+=subTotRow(s,false);}
+      if(chapStk.length)html+=chapTotRow(chapStk.pop());
+      chapStk.push({id:r.id,desig:r.desig});
+      html+=`<tr class="rc${selCls}" id="ro-${r.id}" draggable="false"
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${C.chapBg};color:${C.chapFg};cursor:pointer"
+          onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+        <td colspan="4" style="background:${C.chapBg}">
+          <input class="di" value="${esc(r.desig)}" placeholder="Nom du chapitre…"
+            style="color:${C.chapFg}!important;-webkit-text-fill-color:${C.chapFg};caret-color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
+            oninput="upd('${r.id}','desig',this.value)"/>
+        </td>
+        <td style="background:${C.chapBg}"></td>
+      </tr>`;
+    }
+    else if(r.type==='sub'){
+      const lv=r.level||1;
+      while(subStk.length&&subStk[subStk.length-1].level>=lv){
+        const s=subStk.pop();
+        html+=subTotRow(s,!hidden.has(rows.findIndex(x=>x.id===s.id)));
+      }
+      subStk.push({id:r.id,desig:r.desig,level:lv});
+      const bg=lv===1?C.sub1Bg:lv===2?C.sub2Bg:C.sub3Bg;
+      const fg=lv===1?C.sub1Fg:lv===2?C.sub2Fg:C.sub3Fg;
+      const pl=(lv-1)*20+8;
+      html+=`<tr class="rs${selCls}" id="ro-${r.id}" ${h}
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${bg};color:${fg};cursor:pointer;font-weight:bold"
+          onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+        <td colspan="4" style="background:${bg}">
+          <input class="di" value="${esc(r.desig)}" placeholder="Nom du sous-chapitre…"
+            style="color:${fg}!important;-webkit-text-fill-color:${fg};caret-color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
+            oninput="upd('${r.id}','desig',this.value)"/>
+        </td>
+        <td style="background:${bg}"></td>
+      </tr>`;
+    }
+    else if(r.type==='art'){
+      const hasKids=artHasSubarts(r.id);
+      const t=hasKids?0:artTotal(r); 
+      const qv=mode==='BPU'?'visibility:hidden':'';
+      html+=`<tr class="ra${selCls}" id="ro-${r.id}" ${h}
+        ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${C.artBg};color:${C.artFg}">${esc(n)}</td>
+        <td style="background:${C.artBg}">
+          <textarea class="di" rows="1" placeholder="Désignation de l'article…"
+            style="color:${C.artFg}"
+            oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
+        </td>
+        ${hasKids
+          ?`<td style="background:${C.artBg}"></td>
+        <td style="background:${C.artBg}"></td>
+        <td style="background:${C.artBg}"></td>`
+          :`<td style="background:${C.artBg}">
+          <select class="ui" style="color:${C.artFg}" onchange="upd('${r.id}','unite',this.value)">
+            ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
+          </select>
+        </td>
+        <td style="background:${C.artBg};${qv}">
+          <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
+            style="color:${C.artFg}" oninput="upd('${r.id}','qty',this.value)" onkeydown="kn(event,'${r.id}','q')"/>
+        </td>
+        <td style="background:${C.artBg}">
+          <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
+            style="color:${C.artFg}" oninput="upd('${r.id}','pu',this.value)" onkeydown="kn(event,'${r.id}','p')"/>
+        </td>`}
+        <td class="tc${t?' v':''}" style="background:${C.artBg};color:${C.artFg}" id="at-${r.id}">${t?da(t):''}</td>
+      </tr>`;
+    }
+    else if(r.type==='subart'){
+      const t=artTotal(r);
+      const qv=mode==='BPU'?'visibility:hidden':'';
+      html+=`<tr class="rsa${selCls}" id="ro-${r.id}" ${h}
+        ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${C.saBg};color:${C.saFg};padding-left:14px">${esc(letter)}</td>
+        <td style="background:${C.saBg}">
+          <textarea class="di" rows="1" placeholder="Sous-article (ex: ø 110mm)…"
+            style="color:${C.saFg};padding-left:18px"
+            oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
+        </td>
+        <td style="background:${C.saBg}">
+          <select class="ui" style="color:${C.saFg}" onchange="upd('${r.id}','unite',this.value)">
+            ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
+          </select>
+        </td>
+        <td style="background:${C.saBg};${qv}">
+          <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
+            style="color:${C.saFg}" oninput="upd('${r.id}','qty',this.value)"/>
+        </td>
+        <td style="background:${C.saBg}">
+          <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
+            style="color:${C.saFg}" oninput="upd('${r.id}','pu',this.value)"/>
+        </td>
+        <td class="tc${t?' v':''}" style="background:${C.saBg};color:${C.saFg}" id="at-${r.id}">${t?da(t):''}</td>
+      </tr>`;
+    }
+    else if(r.type==='blank'){
+      html+=`<tr class="rb${selCls}" id="ro-${r.id}" ${h}
+        onclick="selectRow('${r.id}',this,event)">
+        <td style="background:#fff"></td>
+        <td colspan="4" style="background:#fff">
+          <input class="di" value="${esc(r.desig)}" placeholder="Note / description…"
+            style="font-style:italic;color:#333" oninput="upd('${r.id}','desig',this.value)"/>
+        </td>
+        <td style="background:#fff"></td>
+      </tr>`;
+    }
+  });
+
+  while(subStk.length){const s=subStk.pop();html+=subTotRow(s,true);}
+  if(chapStk.length)html+=chapTotRow(chapStk.pop());
+
+  const grand=grandTotal();
+  const tvaPct=num(document.getElementById('tva').value)/100;
+  const tvaAmt=grand*tvaPct;
+  const tvaLabel=document.getElementById('tva').value;
+  html+=`<tr class="rgt">
+    <td style="background:${C.gtBg}"></td>
+    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL GÉNÉRAL HT</span></td>
+    <td style="background:${C.gtBg}"></td>
+    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="gt-val">${da(grand)}</td>
+  </tr>
+  <tr class="rtva">
+    <td style="background:${C.gtBg}"></td>
+    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" id="tva-label" style="color:${C.gtFg}">TVA (${tvaLabel}%)</span></td>
+    <td style="background:${C.gtBg}"></td>
+    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg}" id="tva-val">${da(tvaAmt)}</td>
+  </tr>
+  <tr class="rttc">
+    <td style="background:${C.gtBg}"></td>
+    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL TTC</span></td>
+    <td style="background:${C.gtBg}"></td>
+    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="ttc-val">${da(grand+tvaAmt)}</td>
+  </tr>`;
+
+  document.getElementById('body').innerHTML=html;
+
+  document.querySelectorAll('#body tr[id^="ro-"]').forEach(tr=>{
+    tr.addEventListener('dragover',e=>{e.preventDefault();dov2(e,tr);});
+    tr.addEventListener('dragleave',e=>dlv2(tr));
+    tr.addEventListener('drop',e=>dp2(e,tr));
+  });
+  
+  document.querySelectorAll('textarea.di').forEach(t=>{t.style.height='auto';t.style.height=t.scrollHeight+'px';});
+  
+  if(selId){
+    const tr=document.getElementById('ro-'+selId);
+    if(tr){tr.classList.add('sel-row');positionFloatCtrl(tr);}
+    else clearSelection();
+  }
+  recalc();
+}
+
+/* ═══════════════════════════════════════════
+   11. DRAG & DROP
+═══════════════════════════════════════════ */
+let dragId=null;
+function dov2(e,tr){
+  e.preventDefault();
+  document.querySelectorAll('.dov-top,.dov-bot').forEach(el=>el.classList.remove('dov-top','dov-bot'));
+  const rect=tr.getBoundingClientRect();
+  tr.classList.add(e.clientY<rect.top+rect.height/2?'dov-top':'dov-bot');
+}
+function dlv2(tr){tr.classList.remove('dov-top','dov-bot');}
+function dp2(e,tr){
+  e.preventDefault();
+  document.querySelectorAll('.dov-top,.dov-bot').forEach(el=>el.classList.remove('dov-top','dov-bot'));
+  const toId=tr.id.replace('ro-','');
+  if(!dragId||dragId===toId){dragId=null;return;}
+  const fromTr=document.getElementById('ro-'+dragId);if(fromTr)fromTr.classList.remove('dragging');
+  const fi=rows.findIndex(r=>r.id===dragId);
+  const ti=rows.findIndex(r=>r.id===toId);
+  if(fi<0||ti<0){dragId=null;return;}
+  
+  snapshot(); 
+
+  const rect=tr.getBoundingClientRect();
+  const before=e.clientY<rect.top+rect.height/2;
+  const block=extractBlock(fi);
+  rows.splice(fi,block.length);
+  let ni=rows.findIndex(r=>r.id===toId);
+  if(!before)ni++;
+  if(ni<0)ni=rows.length;
+  rows.splice(ni,0,...block);
+  dragId=null;render();
+  triggerAutosave();
+}
+function dov(e,id){e.preventDefault();}
+function dlv(e,id){}
+function dp(e,id){e.preventDefault();}
+function extractBlock(idx){
+  const r=rows[idx];
+  if(r.type==='chap'){
+    const bl=[r];
+    for(let i=idx+1;i<rows.length;i++){if(rows[i].type==='chap')break;bl.push(rows[i]);}
+    return bl;
+  }
+  if(r.type==='art'){
+    const bl=[r];
+    for(let i=idx+1;i<rows.length;i++){
+      const t=rows[i].type;
+      if(t==='subart'||t==='blank'){bl.push(rows[i]);}
+      else break;
+    }
+    return bl;
+  }
+  if(r.type==='sub'){
+    const lv=r.level||1;
+    const bl=[r];
+    for(let i=idx+1;i<rows.length;i++){
+      const t=rows[i].type;
+      if(t==='chap')break;
+      if(t==='sub'&&(rows[i].level||1)<=lv)break;
+      bl.push(rows[i]);
+    }
+    return bl;
+  }
+  return[r];
+}
+
+/* ═══════════════════════════════════════════
+   12. KEYBOARD NAV
+═══════════════════════════════════════════ */
+function kn(e,id,f){
+  if(e.key==='Tab'||(e.key==='Enter'&&f==='p')){
+    e.preventDefault();
+    const art=rows.filter(r=>r.type==='art'||r.type==='subart');
+    const idx=art.findIndex(r=>r.id===id);
+    if(f==='q'){fc2(id,'p');return;}
+    if(f==='p'){
+      if(idx<art.length-1)fc2(art[idx+1].id,'q');
+      else{selId=id;addRow('art');}
+    }
+  }
+}
+function fc2(id,f){
+  setTimeout(()=>{
+    const tr=document.getElementById('ro-'+id);if(!tr)return;
+    const ins=tr.querySelectorAll('input.ni');
+    const inp2=f==='q'?ins[0]:ins[1];
+    if(inp2){inp2.focus();inp2.select();}
+  },20);
+}
+
+/* ═══════════════════════════════════════════
+   13. COLORS
+═══════════════════════════════════════════ */
+function syncColorPicker(){
+  const m={
+    'cc-chap-bg':C.chapBg,'cc-chap-fg':C.chapFg,
+    'cc-sub1-bg':C.sub1Bg,'cc-sub1-fg':C.sub1Fg,
+    'cc-sub2-bg':C.sub2Bg,'cc-sub2-fg':C.sub2Fg,
+    'cc-sub3-bg':C.sub3Bg,'cc-sub3-fg':C.sub3Fg,
+    'cc-art-bg':C.artBg,'cc-art-fg':C.artFg,
+    'cc-sa-bg':C.saBg,'cc-sa-fg':C.saFg,
+    'cc-ts-bg':C.tsBg,'cc-ts-fg':C.tsFg,
+    'cc-tc-bg':C.tcBg,'cc-tc-fg':C.tcFg,
+    'cc-gt-bg':C.gtBg,'cc-gt-fg':C.gtFg,
+  };
+  Object.entries(m).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
+}
+function applyColors(){
+  const g=id=>document.getElementById(id)?.value||'#000';
+  C={
+    chapBg:g('cc-chap-bg'),chapFg:g('cc-chap-fg'),
+    sub1Bg:g('cc-sub1-bg'),sub1Fg:g('cc-sub1-fg'),
+    sub2Bg:g('cc-sub2-bg'),sub2Fg:g('cc-sub2-fg'),
+    sub3Bg:g('cc-sub3-bg'),sub3Fg:g('cc-sub3-fg'),
+    artBg: g('cc-art-bg'), artFg: g('cc-art-fg'),
+    saBg:  g('cc-sa-bg'),  saFg:  g('cc-sa-fg'),
+    tsBg:  g('cc-ts-bg'),  tsFg:  g('cc-ts-fg'),
+    tcBg:  g('cc-tc-bg'),  tcFg:  g('cc-tc-fg'),
+    gtBg:  g('cc-gt-bg'),  gtFg:  g('cc-gt-fg'),
+  };
+  render();
+  triggerAutosave();
+}
+
+/* ═══════════════════════════════════════════
+   14. IMPORT / EXPORT
+═══════════════════════════════════════════ */
+function doExport(){
+  if(!rows.length){notif('⚠ Aucune donnée');return;}
+  const wb=XLSX.utils.book_new();
+  const{nums,letters}=buildNums();
+  const{chapT,subT}=computeTotals();
+  const l1=document.getElementById('hl1').value;
+  const data=[];
+  data.push([l1]);
+  data.push([document.getElementById('hl2').value]);
+  data.push([document.getElementById('hl3').value]);
+  data.push([]);
+  data.push([mode==='DQE'?'DETAIL QUANTITATIF ESTIMATIF':'BORDEREAU DES PRIX UNITAIRES']);
+  data.push([]);
+  const hdr=['N°','DESIGNATION DES OUVRAGES','U'];
+  if(mode==='DQE')hdr.push('Quantité');
+  hdr.push('PRIX U HT','MONTANT HT');
+  data.push(hdr);
+
+  let chapStk=[],subStk2=[];
+  const pst2=()=>{
+    while(subStk2.length){
+      const s=subStk2.pop();const t=subT[s.id]||0;
+      const r=['','Total '+s.desig,''];if(mode==='DQE')r.push('');r.push('',t);data.push(r);
+    }
+  };
+  const pct2=()=>{
+    if(!chapStk.length)return;
+    const c=chapStk.pop();const t=chapT[c.id]||0;
+    const r=['','Total '+c.desig,''];if(mode==='DQE')r.push('');r.push('',t);data.push(r);
+  };
+
+  rows.forEach((r,i)=>{
+    const n=nums[i],letter=letters[i];
+    if(r.type==='chap'){
+      pst2();pct2();chapStk.push({id:r.id,desig:r.desig});
+      const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    }else if(r.type==='sub'){
+      const lv=r.level||1;
+      while(subStk2.length&&subStk2[subStk2.length-1].level>=lv){
+        const s=subStk2.pop();const t=subT[s.id]||0;
+        const rx=['','Total '+s.desig,''];if(mode==='DQE')rx.push('');rx.push('',t);data.push(rx);
+      }
+      subStk2.push({id:r.id,desig:r.desig,level:lv});
+      const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    }else if(r.type==='art'){
+      const hasKids=artHasSubarts(r.id);
+      const t=hasKids?artParentTotal(r):artTotal(r);
+      const row=[n,r.desig,hasKids?'':r.unite];
+      if(mode==='DQE')row.push(hasKids?'':num(r.qty));
+      row.push(hasKids?'':num(r.pu),t);data.push(row);
+    }else if(r.type==='subart'){
+      const t=artTotal(r);const row=[letter,r.desig,r.unite];
+      if(mode==='DQE')row.push(num(r.qty));row.push(num(r.pu),t);data.push(row);
+    }else if(r.type==='blank'){
+      const row=['',r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    }
+  });
+  pst2();pct2();
+
+  const grand=grandTotal();
+  const tvaPct=num(document.getElementById('tva').value)/100;
+  const tvaAmt=grand*tvaPct;
+  data.push([]);
+  const mk=(l,v)=>{const r=['',l,''];if(mode==='DQE')r.push('');r.push('',v);return r;};
+  data.push(mk('TOTAL GÉNÉRAL HT',grand));
+  data.push(mk('TVA '+document.getElementById('tva').value+'%',tvaAmt));
+  data.push(mk('TOTAL TTC',grand+tvaAmt));
+
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:10},{wch:55},{wch:6},...(mode==='DQE'?[{wch:10}]:[]),{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,mode);
+  XLSX.writeFile(wb,(l1||'devis').replace(/\s+/g,'_').substring(0,40)+'_'+mode+'.xlsx');
+  notif('✓ Excel exporté');
+}
+
+function importExcel(inp) {
+    const f = inp.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            
+            snapshot(); 
+            
+            let newRows = [];
+            json.forEach((row, i) => {
+                const numStr = String(row[0]||'').trim();
+                const desig = String(row[1]||'').trim();
+                if(!numStr && !desig) return;
+                
+                let type = 'blank';
+                let level = 1;
+                let qty = row[3]||'';
+                let pu = row[4]||'';
+                
+                if(ROMAN.includes(numStr)) {
+                    type = 'chap';
+                } else if(/^[a-z]$/.test(numStr)) {
+                    type = 'subart';
+                } else if(/^\d+\.\d+$/.test(numStr)) {
+                    type = 'art';
+                } else if(/^\d+$/.test(numStr)) {
+                    if(row[2] || row[4]) type = 'art'; 
+                    else { type = 'sub'; level = 1; }
+                }
+                
+                const obj = {
+                    id: uid(),
+                    type,
+                    desig,
+                    collapsed: false
+                };
+                
+                if(type === 'sub') obj.level = level;
+                if(type === 'art' || type === 'subart') {
+                    obj.unite = row[2]||'M²';
+                    obj.qty = qty;
+                    obj.pu = pu;
+                }
+                
+                newRows.push(obj);
+            });
+            
+            rows = newRows;
+            nid = rows.length + 10;
+            render();
+            triggerAutosave();
+            notif('✓ Excel Importé');
+        } catch(err) {
+            console.error(err);
+            notif('⚠ Erreur Import Excel');
+        }
+    };
+    reader.readAsArrayBuffer(f);
+    inp.value = '';
+}
+
+/* ═══════════════════════════════════════════
+   15. UTILS
+═══════════════════════════════════════════ */
+function notif(m){
+  document.getElementById('nf-msg').textContent=m;
+  bootstrap.Toast.getOrCreateInstance(document.getElementById('nf-toast')).show();
+}
+
+/* ═══════════════════════════════════════════
+   16. INIT
+═══════════════════════════════════════════ */
+window.onload=()=>{
+    if(!loadLocal()) {
+        rows=[]; 
+        render();
+    } else {
+        render();
+        notif("✓ Données restaurées");
+    }
+    snapshot();
+};
+</script>
+</body>
+</html>

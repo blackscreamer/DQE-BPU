@@ -1,0 +1,470 @@
+{
+  "v": 6,
+  "rows": [
+    {
+      "type": "chap",
+      "id": "r1",
+      "desig": "Infrastructure",
+      "collapsed": false
+    },
+    {
+      "type": "sub",
+      "id": "r2",
+      "desig": "Terrassement",
+      "level": 1,
+      "collapsed": false
+    },
+    {
+      "type": "art",
+      "id": "r3",
+      "desig": "Décapage de la terre végétale e=20cm",
+      "unite": "M³",
+      "qty": "662.919",
+      "pu": "400"
+    },
+    {
+      "type": "art",
+      "id": "r4",
+      "desig": "Terrassement terrain ordinaire",
+      "unite": "M³",
+      "qty": "1912.953",
+      "pu": "400"
+    },
+    {
+      "type": "sub",
+      "id": "r9",
+      "desig": "béton en infrastructure",
+      "level": 1,
+      "collapsed": false
+    },
+    {
+      "type": "art",
+      "id": "r10",
+      "desig": "Béton de propreté  dosé à 250 kg/M3 de ciment  CPJ 45",
+      "unite": "M³",
+      "qty": "238.822",
+      "pu": "9000"
+    },
+    {
+      "type": "art",
+      "id": "r11",
+      "desig": "Gros béton",
+      "unite": "M³",
+      "qty": "77.92",
+      "pu": "9000"
+    },
+    {
+      "type": "art",
+      "id": "r15",
+      "desig": "Béton",
+      "unite": "M²",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r16",
+      "desig": "semelle",
+      "unite": "M³",
+      "qty": "796.542",
+      "pu": "32000"
+    },
+    {
+      "type": "subart",
+      "id": "r17",
+      "desig": "longrine",
+      "unite": "M³",
+      "qty": "268.023",
+      "pu": "32000"
+    },
+    {
+      "type": "subart",
+      "id": "r18",
+      "desig": "amorce poteau",
+      "unite": "M³",
+      "qty": "42.378",
+      "pu": "32000"
+    },
+    {
+      "type": "subart",
+      "id": "r19",
+      "desig": "voile périphérique",
+      "unite": "M³",
+      "qty": "95.14",
+      "pu": "32000"
+    },
+    {
+      "type": "art",
+      "id": "r12",
+      "desig": "herissonage",
+      "unite": "M²",
+      "qty": "2750.653",
+      "pu": "1000"
+    },
+    {
+      "type": "art",
+      "id": "r13",
+      "desig": "dalle solidaire",
+      "unite": "M²",
+      "qty": "2750.653",
+      "pu": "2200"
+    },
+    {
+      "type": "art",
+      "id": "r14",
+      "desig": "joint polystyrene",
+      "unite": "M²",
+      "qty": "186.06",
+      "pu": "200"
+    },
+    {
+      "type": "sub",
+      "id": "r20",
+      "desig": "Assainissement interieur",
+      "level": 1,
+      "collapsed": false
+    },
+    {
+      "type": "art",
+      "id": "r21",
+      "desig": "regard de jonction de chute en béton ",
+      "unite": "U",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r22",
+      "desig": "40x40",
+      "unite": "U",
+      "qty": "20",
+      "pu": "20000"
+    },
+    {
+      "type": "subart",
+      "id": "r23",
+      "desig": "60x60",
+      "unite": "U",
+      "qty": "70",
+      "pu": "25000"
+    },
+    {
+      "type": "art",
+      "id": "r24",
+      "desig": "caniveau de jonction de chute en béton",
+      "unite": "U",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r25",
+      "desig": "40x40xML",
+      "unite": "Ml",
+      "qty": "15",
+      "pu": "10000"
+    },
+    {
+      "type": "art",
+      "id": "r26",
+      "desig": "F/P conduite en pvc PN06",
+      "unite": "Ml",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r27",
+      "desig": "125",
+      "unite": "Ml",
+      "qty": "75",
+      "pu": "1200"
+    },
+    {
+      "type": "subart",
+      "id": "r28",
+      "desig": "200",
+      "unite": "Ml",
+      "qty": "10",
+      "pu": "2000"
+    },
+    {
+      "type": "subart",
+      "id": "r29",
+      "desig": "250",
+      "unite": "Ml",
+      "qty": "65",
+      "pu": "2500"
+    },
+    {
+      "type": "chap",
+      "id": "r30",
+      "desig": "GOES OEUVRES EN SUPERSTRUCTURE",
+      "collapsed": false
+    },
+    {
+      "type": "sub",
+      "id": "r31",
+      "desig": "béton en superstructure",
+      "level": 1,
+      "collapsed": false
+    },
+    {
+      "type": "art",
+      "id": "r32",
+      "desig": "Béton armé en élévation dosé à 350 kg/M3 de ciment CPJ 45",
+      "unite": "M³",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r33",
+      "desig": "Poteaux",
+      "unite": "M³",
+      "qty": "258.048",
+      "pu": "31000"
+    },
+    {
+      "type": "subart",
+      "id": "r34",
+      "desig": "Voile CV",
+      "unite": "M³",
+      "qty": "31.752",
+      "pu": "31000"
+    },
+    {
+      "type": "subart",
+      "id": "r35",
+      "desig": "Voile ST",
+      "unite": "M³",
+      "qty": "19.7820",
+      "pu": "31000"
+    },
+    {
+      "type": "subart",
+      "id": "r36",
+      "desig": "Poutre chainage",
+      "unite": "M³",
+      "qty": "713.622",
+      "pu": "31000"
+    },
+    {
+      "type": "subart",
+      "id": "r37",
+      "desig": "acrotere",
+      "unite": "M³",
+      "qty": "68.67",
+      "pu": "29000"
+    },
+    {
+      "type": "subart",
+      "id": "r38",
+      "desig": "escalier",
+      "unite": "M³",
+      "qty": "63.14595",
+      "pu": "29000"
+    },
+    {
+      "type": "subart",
+      "id": "r39",
+      "desig": "mini ouvrage",
+      "unite": "M³",
+      "qty": "68.8485",
+      "pu": "25000"
+    },
+    {
+      "type": "subart",
+      "id": "r40",
+      "desig": "raidisseur",
+      "unite": "M³",
+      "qty": "6.0585",
+      "pu": "25000"
+    },
+    {
+      "type": "subart",
+      "id": "r41",
+      "desig": "rampe",
+      "unite": "M³",
+      "qty": "7.71225",
+      "pu": "6000"
+    },
+    {
+      "type": "subart",
+      "id": "r42",
+      "desig": "gradins",
+      "unite": "M³",
+      "qty": "47.859",
+      "pu": "25000"
+    },
+    {
+      "type": "subart",
+      "id": "r43",
+      "desig": "element decoratif",
+      "unite": "M³",
+      "qty": "7.875",
+      "pu": "25000"
+    },
+    {
+      "type": "art",
+      "id": "r44",
+      "desig": "F/P géo-textile",
+      "unite": "M²",
+      "qty": "98.91",
+      "pu": "250"
+    },
+    {
+      "type": "art",
+      "id": "r45",
+      "desig": "Dalle pleine 15cm",
+      "unite": "M³",
+      "qty": "20.09595",
+      "pu": "30000"
+    },
+    {
+      "type": "art",
+      "id": "r46",
+      "desig": "Dalle pleine 20cm",
+      "unite": "M³",
+      "qty": "64.5015",
+      "pu": "35000"
+    },
+    {
+      "type": "art",
+      "id": "r47",
+      "desig": "Corps-creux 20+5",
+      "unite": "M²",
+      "qty": "522.522",
+      "pu": "4500"
+    },
+    {
+      "type": "art",
+      "id": "r48",
+      "desig": "Corps-creux 16.4",
+      "unite": "M²",
+      "qty": "5381.2395",
+      "pu": "3500"
+    },
+    {
+      "type": "art",
+      "id": "r49",
+      "desig": "Joint polystyrene",
+      "unite": "M²",
+      "qty": "483.6825",
+      "pu": "200"
+    },
+    {
+      "type": "sub",
+      "id": "r51",
+      "desig": "Maconneries et enduits",
+      "level": 1,
+      "collapsed": false
+    },
+    {
+      "type": "art",
+      "id": "r52",
+      "desig": "Maçonnerie en brique",
+      "unite": "M²",
+      "qty": "5789.28",
+      "pu": "2000"
+    },
+    {
+      "type": "subart",
+      "id": "r55",
+      "desig": "Double parois 30cm",
+      "unite": "M²",
+      "qty": "5789.28",
+      "pu": "2000"
+    },
+    {
+      "type": "subart",
+      "id": "r56",
+      "desig": "Maçonnerie simple 10cm",
+      "unite": "M²",
+      "qty": "776.1075",
+      "pu": "1100"
+    },
+    {
+      "type": "art",
+      "id": "r57",
+      "desig": "Enduit en mortier de ciment",
+      "unite": "M²",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r58",
+      "desig": "sur mur exterieur",
+      "unite": "M²",
+      "qty": "4327.26",
+      "pu": "400"
+    },
+    {
+      "type": "subart",
+      "id": "r59",
+      "desig": "sur mur intérieurs",
+      "unite": "M²",
+      "qty": "1223.6175",
+      "pu": "300"
+    },
+    {
+      "type": "subart",
+      "id": "r60",
+      "desig": "sous plafonds",
+      "unite": "M²",
+      "qty": "289.1175",
+      "pu": "300"
+    },
+    {
+      "type": "art",
+      "id": "r61",
+      "desig": "Enduit interieur en platre",
+      "unite": "M²",
+      "qty": "",
+      "pu": ""
+    },
+    {
+      "type": "subart",
+      "id": "r62",
+      "desig": "sur mur",
+      "unite": "M²",
+      "qty": "8237.2185",
+      "pu": "300"
+    },
+    {
+      "type": "subart",
+      "id": "r63",
+      "desig": "sous plafonds",
+      "unite": "M²",
+      "qty": "5211.93750",
+      "pu": "300"
+    }
+  ],
+  "mode": "DQE",
+  "nid": 64,
+  "C": {
+    "chapBg": "#c00000",
+    "chapFg": "#000000",
+    "sub1Bg": "#ffff00",
+    "sub1Fg": "#000000",
+    "sub2Bg": "#bdd7ee",
+    "sub2Fg": "#000000",
+    "sub3Bg": "#ffae00",
+    "sub3Fg": "#000000",
+    "artBg": "#ffffff",
+    "artFg": "#000000",
+    "saBg": "#f5f5f5",
+    "saFg": "#000000",
+    "tsBg": "#bdd7ee",
+    "tsFg": "#000000",
+    "tcBg": "#92d050",
+    "tcFg": "#000000",
+    "gtBg": "#ffff00",
+    "gtFg": "#000000"
+  },
+  "tva": "19",
+  "l1": "DEP CONSTANTINE",
+  "l2": "COLLEGE TYPE 6 à zouaghi commune de constantine wilaya de constantine",
+  "l3": "BET: GUESSAB AHLEM"
+}

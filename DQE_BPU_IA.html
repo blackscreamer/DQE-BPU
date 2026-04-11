@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DQE · BPU — IA Gratuite</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f0ede8;--paper:#fff;--card:#faf9f7;--border:#e0dbd4;--accent:#c8521a;--al:#fff5f0;--ink:#1a1a18;--muted:#777;--green:#2a7a2a;--blue:#1a4a7a;--gold:#8a6000}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;font-size:14px}
+button{cursor:pointer;font-family:inherit}
+input,textarea,select{font-family:inherit;font-size:13px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px}
+
+#topbar{background:var(--paper);border-bottom:2px solid var(--border);padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.brand-name{font-size:17px;font-weight:800;letter-spacing:-.4px}
+.brand-name b{color:var(--accent)}
+.brand-sub{font-size:10px;color:var(--muted);margin-top:2px;font-family:monospace}
+#top-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace}
+.pill-b{background:#eaf0f8;color:var(--blue)}.pill-g{background:#eef8ee;color:var(--green)}
+.btn-top{padding:6px 14px;background:var(--accent);border:none;border-radius:6px;color:#fff;font-weight:700;font-size:11px;font-family:monospace}
+.btn-top:hover{opacity:.85}
+
+#key-bar{background:#fffbe8;border-bottom:2px solid #e8d06080;padding:9px 22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#key-bar label{font-size:12px;font-weight:700;color:var(--gold);white-space:nowrap}
+#key-inp{flex:1;min-width:200px;max-width:380px;padding:7px 11px;border:1px solid #d0b840;border-radius:6px;background:#fff;font-family:monospace;font-size:12px;outline:none}
+#key-inp:focus{border-color:var(--accent)}
+#key-save{padding:7px 14px;background:var(--accent);border:none;border-radius:6px;color:#fff;font-weight:700;font-size:12px}
+#key-save:hover{opacity:.85}
+#key-st{font-size:11px;font-weight:700;font-family:monospace}
+.st-ok{color:var(--green)}.st-no{color:#c00}
+#key-help{font-size:11px;color:var(--muted)}
+#key-help a{color:var(--accent);font-weight:700;text-decoration:none}
+
+#tabs{background:var(--paper);border-bottom:1px solid var(--border);display:flex;padding:0 22px}
+.tab{padding:10px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:700;font-size:12px;font-family:monospace;letter-spacing:.4px;display:flex;align-items:center;gap:5px;transition:all .13s}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--accent)}
+.tbadge{background:var(--accent);color:#fff;border-radius:20px;padding:1px 6px;font-size:10px}
+
+#body{display:flex;flex:1;overflow:hidden;height:calc(100vh - 116px)}
+#sidebar{width:252px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sblk{padding:13px;border-bottom:1px solid var(--border)}
+.slbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#999;font-family:monospace;margin-bottom:8px}
+
+#dz{border:2px dashed #bbb;border-radius:9px;padding:18px 10px;text-align:center;cursor:pointer;background:var(--bg);transition:all .15s}
+#dz:hover,#dz.ov{border-color:var(--accent);background:var(--al)}
+#dz .di{font-size:26px}.dt{font-size:12px;font-weight:700;margin-top:6px}.ds{font-size:10px;color:var(--muted);margin-top:3px;font-family:monospace}
+#fi{display:none}
+#flist{display:flex;flex-direction:column;gap:5px;margin-top:9px}
+.fc{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:6px;background:var(--paper);border:1px solid var(--border)}
+.fi2{font-size:15px;flex-shrink:0}
+.fn{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fm{font-size:10px;color:var(--muted);font-family:monospace;margin-top:1px}
+.fd{background:none;border:none;color:#bbb;font-size:11px;padding:2px 3px;border-radius:3px}
+.fd:hover{color:var(--accent)}
+#abtn{width:100%;margin-top:9px;padding:9px 0;background:var(--accent);border:none;border-radius:7px;color:#fff;font-weight:700;font-size:12px;font-family:monospace}
+#abtn:hover{opacity:.85}
+#abtn:disabled{opacity:.45;cursor:not-allowed}
+
+/* progress bar */
+#prog-wrap{display:none;margin-top:10px}
+#prog-label{font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:4px}
+#prog-bar-bg{background:#e0dbd4;border-radius:4px;height:6px}
+#prog-bar{background:var(--accent);height:6px;border-radius:4px;width:0%;transition:width .3s}
+
+.ibox{margin:11px;padding:11px 13px;background:#fffbe8;border:1px solid #e8d88a;border-radius:9px}
+.ibt{font-size:11px;font-weight:700;color:var(--gold);margin-bottom:7px}
+.ist{font-size:11px;color:#555;margin-bottom:4px;display:flex;align-items:flex-start;gap:6px;line-height:1.5}
+.inum{background:var(--accent);color:#fff;border-radius:50%;width:15px;height:15px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
+
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#cv{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#msgs{flex:1;overflow-y:auto;padding:18px 26px;display:flex;flex-direction:column;gap:12px}
+#wlc{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;padding:36px 18px}
+.wi{font-size:50px}.wt{font-size:19px;font-weight:800;margin-top:11px}.wx{font-size:13px;color:var(--muted);margin-top:7px;max-width:460px;line-height:1.8}
+.qg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:16px;width:100%;max-width:520px}
+.qb{padding:9px 11px;background:var(--paper);border:1px solid var(--border);border-radius:7px;color:var(--ink);font-size:12px;cursor:pointer;text-align:left;line-height:1.4}
+.qb:hover{background:var(--al);border-color:var(--accent)}
+
+.mu{align-self:flex-end;background:linear-gradient(135deg,#ffeee6,#fff8f5);border:1px solid #f0b09055;border-radius:11px 11px 2px 11px;padding:11px 15px;max-width:70%}
+.ma{align-self:flex-start;background:var(--paper);border:1px solid var(--border);border-radius:2px 11px 11px 11px;padding:13px 15px;max-width:90%}
+.lbu{font-size:10px;font-weight:700;color:var(--accent);margin-bottom:5px;letter-spacing:1.4px;font-family:monospace;text-transform:uppercase}
+.lba{font-size:10px;font-weight:700;color:var(--green);margin-bottom:5px;letter-spacing:1.4px;font-family:monospace;text-transform:uppercase}
+.mt{font-size:13px;line-height:1.75;white-space:pre-wrap}
+.abadge{margin-top:9px;padding:5px 13px;background:#eef8ee;border:none;border-radius:5px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;font-family:monospace;display:inline-block}
+.abadge:hover{background:#d5f0d5}
+.ldrow{display:flex;align-items:center;gap:4px;padding:3px 0}
+.ld{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;animation:ld 1.1s ease-in-out infinite}
+@keyframes ld{0%,80%,100%{transform:scale(.5);opacity:.3}40%{transform:scale(1);opacity:1}}
+.ldt{font-size:12px;color:var(--muted);margin-left:7px;font-family:monospace}
+
+#ia{border-top:1px solid var(--border);padding:11px 18px;background:var(--paper);display:flex;gap:9px;align-items:flex-end}
+#ci{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 13px;color:var(--ink);font-size:13px;resize:none;outline:none;line-height:1.6;min-height:42px;max-height:110px}
+#ci:focus{border-color:var(--accent);box-shadow:0 0 0 3px #c8521a1a}
+#sb{height:42px;padding:0 18px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-weight:700;font-size:12px;font-family:monospace;flex-shrink:0}
+#sb:hover{opacity:.85}
+#sb:disabled{opacity:.45;cursor:not-allowed}
+
+#dv{flex:1;display:none;flex-direction:column;overflow:hidden}
+#dbar{padding:9px 16px;background:var(--paper);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sw{position:relative}
+#srch{padding:6px 9px 6px 26px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;color:var(--ink);outline:none;width:190px}
+#srch:focus{border-color:var(--accent)}
+.sico{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#aaa;font-size:13px;pointer-events:none}
+#cf{height:30px;padding:0 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;color:var(--ink)}
+.btn-exp{padding:5px 13px;background:var(--accent);border:none;border-radius:5px;color:#fff;font-weight:700;font-size:11px;font-family:monospace}
+.btn-exp:hover{opacity:.85}
+.btn-clr{padding:5px 11px;background:none;border:1px solid var(--accent);border-radius:5px;color:var(--accent);font-weight:700;font-size:11px;font-family:monospace}
+.btn-clr:hover{background:var(--al)}
+#tw{flex:1;overflow:auto}
+#at{width:100%;border-collapse:collapse;font-size:12px}
+#at thead th{padding:8px 11px;background:#1e2535;color:#cdd6e8;text-align:left;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:monospace;position:sticky;top:0;z-index:2}
+#at tbody td{padding:8px 11px;border-bottom:1px solid #ebe7e0;vertical-align:top;line-height:1.5}
+#at tbody tr:nth-child(even){background:var(--bg)}
+#at tbody tr:hover td{background:var(--al)}
+.ct{background:#eaf0f8;color:var(--blue);border-radius:4px;padding:2px 7px;font-size:10px;font-family:monospace;font-weight:700;white-space:nowrap}
+.ut{background:#fffbe8;color:var(--gold);border-radius:4px;padding:2px 7px;font-size:11px;font-family:monospace;font-weight:700}
+.eb{background:none;border:none;color:var(--blue);font-size:12px;padding:2px 4px;border-radius:3px;margin-right:2px}
+.eb:hover{background:#eaf0f8}
+.db2{background:none;border:none;color:var(--accent);font-size:11px;padding:2px 4px;border-radius:3px}
+.db2:hover{background:var(--al)}
+.erow td{background:#fffbe8!important;outline:2px solid #e8b800}
+.ei{background:#fff;border:1px solid #e8b800;border-radius:4px;padding:3px 6px;font-size:12px;color:var(--ink);width:100%}
+.sv{background:var(--green);color:#fff;border:none;border-radius:4px;padding:3px 9px;font-weight:700;margin-right:3px}
+.cv2{background:#999;color:#fff;border:none;border-radius:4px;padding:3px 9px;font-weight:700}
+#de{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:50px;color:var(--muted);text-align:center}
+.dei{font-size:42px}.det{font-size:16px;font-weight:800;color:#333;margin-top:11px}.dex{font-size:13px;color:var(--muted);margin-top:5px;max-width:320px;line-height:1.7}
+
+#nf{position:fixed;bottom:22px;right:22px;padding:9px 16px;background:#1a1a18;color:#fff;border-radius:7px;font-size:12px;font-family:monospace;opacity:0;transition:opacity .28s;pointer-events:none;z-index:999}
+#nf.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">
+    <div class="logo">🏗</div>
+    <div>
+      <div class="brand-name">DQE · BPU <b>IA</b></div>
+      <div class="brand-sub">Extraction intelligente d'articles BTP · Groq gratuit · LLaMA 3.1 8B</div>
+    </div>
+  </div>
+  <div id="top-pills"></div>
+</div>
+
+<div id="key-bar">
+  <label>🔑 Clé Groq :</label>
+  <input type="password" id="key-inp" placeholder="gsk_..."/>
+  <button id="key-save">Enregistrer</button>
+  <span id="key-st"></span>
+  <span id="key-help">Gratuit sur <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> → Create API Key</span>
+</div>
+
+<div id="tabs">
+  <button class="tab on" id="tc" onclick="goTab('c')">💬 Assistant</button>
+  <button class="tab" id="td" onclick="goTab('d')">🗄 Base d'articles <span class="tbadge" id="tbc" style="display:none">0</span></button>
+</div>
+
+<div id="body">
+  <div id="sidebar">
+    <div class="sblk">
+      <div class="slbl">Fichiers Excel</div>
+      <div id="dz"
+        ondragover="event.preventDefault();this.classList.add('ov')"
+        ondragleave="this.classList.remove('ov')"
+        ondrop="onDrop(event)"
+        onclick="document.getElementById('fi').click()">
+        <div class="di">📥</div>
+        <div class="dt">Déposer vos Excel</div>
+        <div class="ds">.xlsx · .xls · .csv</div>
+      </div>
+      <input type="file" id="fi" accept=".xlsx,.xls,.csv" multiple onchange="onFiles(this.files)"/>
+      <div id="flist"></div>
+      <button id="abtn" onclick="analyzeAll()" style="display:none">⚡ Analyser tous les fichiers</button>
+      <div id="prog-wrap">
+        <div id="prog-label">Analyse en cours…</div>
+        <div id="prog-bar-bg"><div id="prog-bar"></div></div>
+      </div>
+    </div>
+    <div class="ibox">
+      <div class="ibt">📋 Comment utiliser</div>
+      <div class="ist"><span class="inum">1</span>Clé Groq gratuite sur console.groq.com</div>
+      <div class="ist"><span class="inum">2</span>Entrez la clé → Enregistrer</div>
+      <div class="ist"><span class="inum">3</span>Chargez vos fichiers Excel</div>
+      <div class="ist"><span class="inum">4</span>Cliquez <strong>Analyser</strong></div>
+      <div class="ist"><span class="inum">5</span>Vérifiez dans <strong>Base d'articles</strong></div>
+      <div class="ist"><span class="inum">6</span>Exportez Excel (3 feuilles)</div>
+      <div class="ist" style="margin-top:6px;font-size:10px;color:#999"><span>💡</span>Les gros fichiers sont analysés feuille par feuille automatiquement</div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="cv">
+      <div id="msgs">
+        <div id="wlc">
+          <div class="wi">🏗</div>
+          <div class="wt">Assistant DQE · BPU</div>
+          <div class="wx">Analysez vos fichiers Excel BTP — même désordonnés — et extrayez automatiquement les articles. Les gros fichiers sont découpés automatiquement pour éviter les erreurs de limite.</div>
+          <div class="qg">
+            <button class="qb" onclick="sq('Analyse et extrait tous les articles de construction')">Extraire tous les articles</button>
+            <button class="qb" onclick="sq('Quels lots ou chapitres as-tu détectés ?')">Voir les chapitres</button>
+            <button class="qb" onclick="sq('Génère les articles du lot Gros Œuvre')">Lot Gros Œuvre</button>
+            <button class="qb" onclick="sq('Inclus les lignes ambiguës et signale-les')">Lignes ambiguës</button>
+          </div>
+        </div>
+      </div>
+      <div id="ia">
+        <textarea id="ci" rows="2" placeholder="Ex: Extrais les articles de plomberie… (Entrée pour envoyer)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+        <button id="sb" onclick="send()">Envoyer ↵</button>
+      </div>
+    </div>
+
+    <div id="dv">
+      <div id="dbar">
+        <div class="sw">
+          <span class="sico">⌕</span>
+          <input type="text" id="srch" placeholder="Rechercher…" oninput="renderDB()"/>
+        </div>
+        <select id="cf" onchange="renderDB()"><option>Tous</option></select>
+        <button class="btn-exp" onclick="exportXLSX()">⬇ Exporter Excel</button>
+        <button class="btn-clr" onclick="clearDB()">🗑 Vider</button>
+      </div>
+      <div id="tw">
+        <div id="de">
+          <div class="dei">🗄</div>
+          <div class="det">Base vide</div>
+          <div class="dex">Chargez vos fichiers et cliquez « Analyser ».</div>
+        </div>
+        <table id="at" style="display:none">
+          <thead><tr>
+            <th style="width:15%">Chapitre</th>
+            <th style="width:28%">Désignation courte (DQE)</th>
+            <th style="width:43%">Désignation longue (BPU)</th>
+            <th style="width:7%">Unité</th>
+            <th style="width:7%">–</th>
+          </tr></thead>
+          <tbody id="tb"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="nf"></div>
+
+<script>
+/* ══════════════════════════════════
+   STATE
+══════════════════════════════════ */
+let apiKey  = localStorage.getItem('groq_key') || '';
+let pFiles  = [];   // {name, sheets:{sheetName: matrix[][]}}
+let arts    = JSON.parse(localStorage.getItem('dqe_arts') || '[]');
+let chatMsgs = [];
+let editId  = null;
+let busy    = false;
+
+const UNITS = ['m','m²','m³','ml','u','ens','kg','t','h','j','forfait','lot'];
+// Keep each chunk well under 10 000 tokens (~40 000 chars safe limit)
+const MAX_CHARS_PER_CHUNK = 4000;
+function splitChunk(text) {
+  const mid = Math.floor(text.length / 2);
+  return [
+    text.slice(0, mid),
+    text.slice(mid)
+  ];
+}
+
+/* ══════════════════════════════════
+   INIT
+══════════════════════════════════ */
+window.onload = () => {
+  if (apiKey) { document.getElementById('key-inp').value = apiKey; setSt(true); }
+  updStats(); renderDB();
+};
+
+/* ══════════════════════════════════
+   API KEY
+══════════════════════════════════ */
+document.getElementById('key-save').onclick = () => {
+  const v = document.getElementById('key-inp').value.trim();
+  if (!v) { setSt(false,'Clé vide'); return; }
+  apiKey = v; localStorage.setItem('groq_key', apiKey);
+  setSt(true); notif('✓ Clé Groq enregistrée');
+};
+function setSt(ok, msg) {
+  const e = document.getElementById('key-st');
+  e.className = ok ? 'st-ok' : 'st-no';
+  e.textContent = ok ? '✓ Clé enregistrée' : ('✗ '+(msg||''));
+}
+
+/* ══════════════════════════════════
+   FILE READING
+══════════════════════════════════ */
+function onDrop(e){ e.preventDefault(); document.getElementById('dz').classList.remove('ov'); onFiles(e.dataTransfer.files); }
+function onFiles(files) {
+  Array.from(files).filter(f => /\.(xlsx|xls|csv)$/i.test(f.name)).forEach(f => {
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const wb = XLSX.read(ev.target.result, {type:'array', cellText:true});
+        const sheets = {};
+        wb.SheetNames.forEach(n => {
+          const ws  = wb.Sheets[n];
+          const rng = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+          const mat = [];
+          for (let ri = rng.s.r; ri <= Math.min(rng.e.r, 800); ri++) {
+            const row = [];
+            for (let ci = rng.s.c; ci <= Math.min(rng.e.c, 30); ci++) {
+              const c = ws[XLSX.utils.encode_cell({r:ri,c:ci})];
+              row.push(c ? String(c.v ?? '').trim() : '');
+            }
+            if (row.some(v => v)) mat.push(row);
+          }
+          sheets[n] = mat;
+        });
+        pFiles.push({name: f.name, sheets});
+        renderFiles(); updStats(); notif('✓ '+f.name);
+      } catch { notif('⚠ Erreur lecture : '+f.name); }
+    };
+    r.readAsArrayBuffer(f);
+  });
+}
+function renderFiles() {
+  const l = document.getElementById('flist'); l.innerHTML = '';
+  pFiles.forEach((pf, i) => {
+    const rows = Object.values(pf.sheets).reduce((s,m) => s+m.length, 0);
+    const sh   = Object.keys(pf.sheets).length;
+    const d    = document.createElement('div'); d.className = 'fc';
+    d.innerHTML = `<div class="fi2">📊</div>
+      <div style="flex:1;min-width:0">
+        <div class="fn" title="${pf.name}">${pf.name}</div>
+        <div class="fm">${rows} lignes · ${sh} feuille${sh>1?'s':''}</div>
+      </div>
+      <button class="fd" onclick="rmFile(${i})">✕</button>`;
+    l.appendChild(d);
+  });
+  document.getElementById('abtn').style.display = pFiles.length ? 'block' : 'none';
+}
+function rmFile(i) { pFiles.splice(i,1); renderFiles(); updStats(); }
+
+/* ══════════════════════════════════
+   CHUNKING — split sheets into
+   digestible pieces for Groq
+══════════════════════════════════ */
+function buildChunks() {
+  // Returns array of {label, text} where text <= MAX_CHARS_PER_CHUNK
+  const chunks = [];
+  pFiles.forEach(pf => {
+    Object.entries(pf.sheets).forEach(([shName, mat]) => {
+      let current = `Fichier: "${pf.name}" | Feuille: "${shName}"\n`;
+      let chunkRows = [];
+
+      mat.forEach((row, i) => {
+        const cells = row.filter(v => v);
+        if (!cells.length) return;
+        const line = `L${i+1}: ${cells.join(' | ')}\n`;
+
+        if ((current + line).length > MAX_CHARS_PER_CHUNK && chunkRows.length > 0) {
+          chunks.push({ label: `${pf.name} › ${shName}`, text: current });
+          current = `Fichier: "${pf.name}" | Feuille: "${shName}" (suite)\n`;
+          chunkRows = [];
+        }
+        current += line;
+        chunkRows.push(i);
+      });
+
+      if (chunkRows.length > 0 || chunks.length === 0) {
+        chunks.push({ label: `${pf.name} › ${shName}`, text: current });
+      }
+    });
+  });
+  return chunks;
+}
+
+/* ══════════════════════════════════
+   SYSTEM PROMPT
+══════════════════════════════════ */
+const SYS = `Tu es un expert en marchés publics de construction (BTP) français. Tu analyses des données Excel chaotiques (sans en-têtes clairs, données mélangées, lignes vides) pour extraire des articles de construction destinés aux DQE et BPU.
+
+Pour chaque article, génère :
+- designation_courte : libellé ≤ 80 caractères, majuscule, sans prix ni quantité. Ex: "Béton C25/30 pour fondations"
+- designation_longue : description technique complète avec normes NF/EN, mode d'exécution, fournitures comprises. Minimum 2 lignes.
+- unite : parmi m, m², m³, ml, u, ens, kg, t, h, j, forfait, lot
+- chapitre : lot ou chapitre déduit du contexte
+
+FORMAT OBLIGATOIRE :
+\`\`\`json
+{"articles":[{"id":"ART-001","chapitre":"Gros Œuvre","designation_courte":"...","designation_longue":"...","unite":"m³"}],"analyse":"résumé court"}
+\`\`\`
+
+Règles : français uniquement, jamais de prix dans les désignations, ignorer les totaux/sous-totaux, inclure les lignes ambiguës.`;
+
+/* ══════════════════════════════════
+   GROQ API CALL (single chunk)
+══════════════════════════════════ */
+async function callGroq(userContent) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey,
+    },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        { role: 'system', content: SYS },
+        { role: 'user',   content: userContent },
+      ],
+      max_tokens: 2000,
+      temperature: 0.2,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Erreur Groq (${res.status})`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+/* ══════════════════════════════════
+   PARSE AI RESPONSE
+══════════════════════════════════ */
+function parseArticles(raw) {
+  const m = raw.match(/```json\s*([\s\S]*?)```/);
+  if (!m) return { articles:[], analyse:'' };
+  try {
+    const p = JSON.parse(m[1]);
+    return { articles: p.articles||[], analyse: p.analyse||'' };
+  } catch { return { articles:[], analyse:'' }; }
+}
+
+function mergeArticles(newArts) {
+  const ex   = new Set(arts.map(a => a.designation_courte?.toLowerCase().trim()));
+  const base = arts.length;
+  const fresh = newArts.filter(a => !ex.has(a.designation_courte?.toLowerCase().trim()));
+  fresh.forEach((a,i) => { if (!a.id) a.id = 'ART-'+String(base+i+1).padStart(3,'0'); });
+  arts = [...arts, ...fresh];
+  saveDB(); updStats(); renderDB();
+  return fresh.length;
+}
+
+/* ══════════════════════════════════
+   ANALYZE ALL — chunk by chunk (corrigé)
+══════════════════════════════════ */
+async function analyzeAll() {
+  if (!apiKey) { notif('⚠ Entrez votre clé Groq en haut'); return; }
+  if (!pFiles.length) { notif('⚠ Aucun fichier chargé'); return; }
+
+  const chunks = buildChunks();
+  if (!chunks.length) return;
+
+  busy = true;
+  setUI(false);
+
+  const wlc = document.getElementById('wlc');
+  if (wlc) wlc.style.display = 'none';
+
+  // Affiche la barre de progression
+  const pw  = document.getElementById('prog-wrap');
+  const pb  = document.getElementById('prog-bar');
+  const pl  = document.getElementById('prog-label');
+  pw.style.display = 'block';
+
+  let totalAdded = 0;
+  const loadId = 'ld'+Date.now();
+
+  addMsg('user', `⚡ Analyse automatique de ${pFiles.length} fichier${pFiles.length>1?'s':''} (${chunks.length} partie${chunks.length>1?'s':''})`);
+  addLoad(loadId, 'Démarrage de l\'analyse…');
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    let queue = [chunk.text]; // Pour gérer les chunks trop gros
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+
+      // Mise à jour UI
+      const pct = Math.round(((i) / chunks.length) * 100);
+      pb.style.width = pct + '%';
+      pl.textContent = `Analyse partie ${i+1}/${chunks.length} : ${chunk.label}`;
+      updateLoadText(loadId, `Analyse partie ${i+1}/${chunks.length} : ${chunk.label}…`);
+
+      const prompt = `Voici une partie des données Excel à analyser. Extrais TOUS les articles de construction identifiables :\n\n${current}\n\nMême si la structure est chaotique, n'ignore aucune ligne potentiellement utile.`;
+
+      try {
+        const raw = await callGroq(prompt);
+        const { articles } = parseArticles(raw);
+        const added = mergeArticles(articles);
+        totalAdded += added;
+        if (added > 0) notif(`✓ ${added} article${added>1?'s':''} extraits`);
+      } catch (err) {
+        // 🔴 Chunk trop gros → découper
+        if (err.message.includes('Request too large')) {
+          console.log("⚠ Chunk trop gros → découpage");
+          const parts = splitChunk(current);
+          if (parts[0].length < 500) continue; // sécurité anti boucle infinie
+          queue.unshift(parts[1]);
+          queue.unshift(parts[0]);
+          continue;
+        }
+
+        // 🟡 Rate limit → pause + retry
+        if (err.message.includes('429') || err.message.includes('rate') || err.message.includes('limit')) {
+          updateLoadText(loadId, `Limite atteinte — pause 20s…`);
+          await sleep(20000);
+          queue.unshift(current);
+          continue;
+        }
+
+        // ⚫ Autres erreurs
+        addMsg('assistant', `⚠ Erreur sur "${chunk.label}" : ${err.message}`, 0);
+      }
+
+      await sleep(3000); // Petite pause entre les requêtes
+    }
+  }
+
+  // Fin de l'analyse
+  pb.style.width  = '100%';
+  pl.textContent  = 'Analyse terminée !';
+  setTimeout(() => { pw.style.display = 'none'; pb.style.width = '0%'; }, 3000);
+
+  rmEl(loadId);
+  addMsg('assistant', `✅ Analyse complète — ${totalAdded} article${totalAdded>1?'s':''} extrait${totalAdded>1?'s':''} au total depuis ${chunks.length} partie${chunks.length>1?'s':''}.\n\nVous pouvez consulter et corriger les articles dans l'onglet « Base d'articles », puis exporter en Excel.`, totalAdded);
+
+  busy = false;
+  setUI(true);
+}
+
+/* ══════════════════════════════════
+   MANUAL CHAT SEND
+══════════════════════════════════ */
+async function send(override) {
+  const inp  = document.getElementById('ci');
+  const text = (override ?? inp.value).trim();
+  if (!text || busy) return;
+  if (!apiKey) { notif('⚠ Entrez votre clé Groq en haut'); return; }
+
+  inp.value = ''; busy = true; setUI(false);
+  const wlc = document.getElementById('wlc');
+  if (wlc) wlc.style.display = 'none';
+
+  chatMsgs.push({ role:'user', content: text });
+  addMsg('user', text);
+  const lid = 'ld'+Date.now();
+  addLoad(lid, 'Analyse en cours…');
+
+  // For manual questions, include a small sample of each file (first 80 lines per sheet)
+  let ctx = '';
+  if (pFiles.length) {
+    ctx = '\n\nDonnées disponibles (extrait) :\n';
+    pFiles.forEach(pf => {
+      ctx += `\nFichier: "${pf.name}"\n`;
+      Object.entries(pf.sheets).forEach(([n, mat]) => {
+        ctx += `Feuille "${n}":\n`;
+        mat.slice(0, 80).forEach((row, i) => {
+          const cells = row.filter(v => v);
+          if (cells.length) ctx += `L${i+1}: ${cells.join(' | ')}\n`;
+        });
+      });
+    });
+  }
+
+  const history = chatMsgs.slice(-6).map(m => ({ role:m.role, content:m.content }));
+  const userMsg = text + ctx;
+
+  try {
+    const raw = await callGroq(userMsg);
+    const { articles, analyse } = parseArticles(raw);
+    let added = 0;
+    if (articles.length) added = mergeArticles(articles);
+
+    let reply = raw.replace(/```json[\s\S]*?```/g,'').trim();
+    if (analyse && !reply.startsWith(analyse)) reply = analyse + (reply?'\n\n'+reply:'');
+
+    rmEl(lid);
+    chatMsgs.push({ role:'assistant', content: reply });
+    addMsg('assistant', reply, added);
+  } catch (err) {
+    rmEl(lid);
+    addMsg('assistant', '⚠ '+err.message, 0);
+  }
+
+  busy = false; setUI(true);
+  document.getElementById('msgs').scrollTop = 999999;
+}
+
+function sq(t) { send(t); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function setUI(on) {
+  document.getElementById('sb').disabled   = !on;
+  document.getElementById('abtn').disabled = !on;
+}
+
+/* ══════════════════════════════════
+   DOM HELPERS
+══════════════════════════════════ */
+function addMsg(role, text, added) {
+  const d = document.createElement('div');
+  d.className = role==='user' ? 'mu' : 'ma';
+  const lbl   = role==='user' ? '<div class="lbu">Vous</div>' : '<div class="lba">IA BTP · Groq</div>';
+  const badge = (added > 0)
+    ? `<button class="abadge" onclick="goTab('d')">✓ ${added} article${added>1?'s':''} ajouté${added>1?'s':''} → voir la base</button>`
+    : '';
+  d.innerHTML = lbl + `<div class="mt">${esc(text)}</div>` + badge;
+  document.getElementById('msgs').appendChild(d);
+  document.getElementById('msgs').scrollTop = 999999;
+}
+function addLoad(id, txt) {
+  const d = document.createElement('div'); d.id = id; d.className = 'ma';
+  d.innerHTML = `<div class="lba">IA BTP · Groq</div>
+    <div class="ldrow">
+      <span class="ld"></span><span class="ld" style="animation-delay:.18s"></span><span class="ld" style="animation-delay:.36s"></span>
+      <span class="ldt" id="${id}-txt">${txt}</span>
+    </div>`;
+  document.getElementById('msgs').appendChild(d);
+  document.getElementById('msgs').scrollTop = 999999;
+}
+function updateLoadText(id, txt) {
+  const e = document.getElementById(id+'-txt');
+  if (e) e.textContent = txt;
+}
+function rmEl(id) { const e=document.getElementById(id); if(e) e.remove(); }
+function esc(s)   { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ══════════════════════════════════
+   TABS
+══════════════════════════════════ */
+function goTab(t) {
+  document.getElementById('cv').style.display = t==='c' ? 'flex' : 'none';
+  document.getElementById('dv').style.display = t==='d' ? 'flex' : 'none';
+  document.getElementById('tc').className = 'tab'+(t==='c'?' on':'');
+  document.getElementById('td').className = 'tab'+(t==='d'?' on':'');
+}
+
+/* ══════════════════════════════════
+   DATABASE
+══════════════════════════════════ */
+function saveDB()  { localStorage.setItem('dqe_arts', JSON.stringify(arts)); }
+function clearDB() {
+  if (!confirm('Vider toute la base ?')) return;
+  arts=[]; saveDB(); updStats(); renderDB();
+}
+function updStats() {
+  const p = document.getElementById('top-pills'); p.innerHTML='';
+  if (pFiles.length) p.innerHTML += `<span class="pill pill-b">${pFiles.length} fichier${pFiles.length>1?'s':''}</span>`;
+  if (arts.length) {
+    p.innerHTML += `<span class="pill pill-g">${arts.length} article${arts.length>1?'s':''}</span>`;
+    p.innerHTML += `<button class="btn-top" onclick="exportXLSX()">⬇ Exporter Excel</button>`;
+  }
+  const b = document.getElementById('tbc');
+  if (arts.length) { b.textContent=arts.length; b.style.display=''; }
+  else b.style.display='none';
+}
+function renderDB() {
+  const q    = (document.getElementById('srch')?.value||'').toLowerCase();
+  const chap = document.getElementById('cf')?.value||'Tous';
+  const sel  = document.getElementById('cf'), cur=sel.value;
+  sel.innerHTML = ['Tous',...new Set(arts.map(a=>a.chapitre||'Sans chapitre'))]
+    .map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
+  const f = arts.filter(a => {
+    const mq = !q||[a.designation_courte,a.designation_longue,a.chapitre,a.unite].some(v=>v?.toLowerCase().includes(q));
+    const mc = chap==='Tous'||(a.chapitre||'Sans chapitre')===chap;
+    return mq&&mc;
+  });
+  const de=document.getElementById('de'), at=document.getElementById('at');
+  if (!arts.length) { de.style.display='flex'; at.style.display='none'; return; }
+  de.style.display='none'; at.style.display='table';
+  const tb=document.getElementById('tb'); tb.innerHTML='';
+  f.forEach(a => {
+    const tr=document.createElement('tr');
+    if (editId===a.id) {
+      tr.className='erow';
+      tr.innerHTML=`
+        <td><input class="ei" id="ec" value="${esc(a.chapitre||'')}"/></td>
+        <td><input class="ei" id="es" value="${esc(a.designation_courte||'')}"/></td>
+        <td><textarea class="ei" id="el" style="min-height:58px;resize:vertical">${esc(a.designation_longue||'')}</textarea></td>
+        <td><select class="ei" id="eu">${UNITS.map(u=>`<option${u===a.unite?' selected':''}>${u}</option>`).join('')}</select></td>
+        <td style="white-space:nowrap">
+          <button class="sv" onclick="svEdit('${a.id}')">✓</button>
+          <button class="cv2" onclick="canEdit()">✕</button>
+        </td>`;
+    } else {
+      tr.innerHTML=`
+        <td><span class="ct">${esc(a.chapitre||'—')}</span></td>
+        <td style="font-weight:600">${esc(a.designation_courte||'')}</td>
+        <td style="font-size:11px;color:#555;line-height:1.5">${esc(a.designation_longue||'')}</td>
+        <td><span class="ut">${esc(a.unite||'')}</span></td>
+        <td style="white-space:nowrap">
+          <button class="eb" onclick="stEdit('${a.id}')">✏</button>
+          <button class="db2" onclick="delArt('${a.id}')">🗑</button>
+        </td>`;
+    }
+    tb.appendChild(tr);
+  });
+}
+function stEdit(id)  { editId=id;   renderDB(); }
+function canEdit()   { editId=null; renderDB(); }
+function svEdit(id)  {
+  const i=arts.findIndex(a=>a.id===id); if(i<0)return;
+  arts[i]={...arts[i],
+    chapitre:document.getElementById('ec').value,
+    designation_courte:document.getElementById('es').value,
+    designation_longue:document.getElementById('el').value,
+    unite:document.getElementById('eu').value,
+  };
+  editId=null; saveDB(); renderDB(); notif('✓ Article mis à jour');
+}
+function delArt(id) {
+  if(!confirm('Supprimer ?'))return;
+  arts=arts.filter(a=>a.id!==id);
+  saveDB(); updStats(); renderDB();
+}
+
+/* ══════════════════════════════════
+   EXPORT XLSX
+══════════════════════════════════ */
+function exportXLSX() {
+  if(!arts.length){notif('⚠ Base vide');return}
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.json_to_sheet(arts.map(a=>({'Désignation courte (DQE)':a.designation_courte,'Désignation longue (BPU)':a.designation_longue,'Unité':a.unite})));
+  ws1['!cols']=[{wch:50},{wch:90},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Base Articles');
+  const ws2=XLSX.utils.json_to_sheet(arts.map(a=>({'Désignation (DQE)':a.designation_courte,'Unité':a.unite,'Quantité':'','Prix Unitaire HT (€)':'','Montant HT (€)':''})));
+  ws2['!cols']=[{wch:52},{wch:10},{wch:12},{wch:20},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Modèle DQE');
+  const ws3=XLSX.utils.json_to_sheet(arts.map(a=>({'Chapitre':a.chapitre||'','Désignation complète (BPU)':a.designation_longue,'Unité':a.unite,'Prix Unitaire HT (€)':''})));
+  ws3['!cols']=[{wch:20},{wch:90},{wch:10},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Modèle BPU');
+  XLSX.writeFile(wb,'base_DQE_BPU.xlsx');
+  notif('✓ Fichier Excel téléchargé');
+}
+
+/* ══════════════════════════════════
+   NOTIFICATION
+══════════════════════════════════ */
+function notif(msg){
+  const e=document.getElementById('nf');
+  e.textContent=msg; e.classList.add('on');
+  setTimeout(()=>e.classList.remove('on'),2800);
+}
+</script>
+</body>
+</html>

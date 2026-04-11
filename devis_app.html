@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DQE / BPU</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --F:'Times New Roman',Times,serif;
+  --SZ:11pt;
+}
+body{font-family:var(--F);font-size:var(--SZ);background:#d0d0d0;color:#000;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+button,input,select,textarea{font-family:var(--F);font-size:var(--SZ);color:#000}
+button{cursor:pointer}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#888;border-radius:3px}
+
+/* ═══ APP BAR ═══ */
+#appbar{
+  background:#222;padding:5px 12px;display:flex;align-items:center;
+  gap:5px;flex-wrap:wrap;flex-shrink:0;border-bottom:2px solid #111;
+}
+.abtn{padding:4px 10px;border:1px solid #444;border-radius:4px;background:#333;color:#ccc;font-size:9.5pt;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.abtn:hover{background:#4a6a9a;border-color:#7aacdd;color:#fff}
+.abtn.accent{background:#1a56a0;border-color:#3a80d0;color:#fff}
+.abtn.accent:hover{background:#2a66b0}
+.mode-grp{display:flex;gap:2px;background:#111;border-radius:5px;padding:2px;flex-shrink:0}
+.mbtn{padding:4px 14px;border:none;border-radius:4px;font-weight:bold;font-size:9.5pt;color:#888;background:transparent}
+.mbtn.on{background:#1a56a0;color:#fff}
+.mbtn:hover:not(.on){color:#fff}
+.sep{width:1px;height:22px;background:#444;margin:0 2px}
+.grp-label{font-size:8.5pt;color:#888;white-space:nowrap}
+.tva-inp{width:46px;padding:3px 5px;border:1px solid #444;border-radius:3px;background:#333;color:#eee;text-align:right;font-size:9.5pt}
+
+/* add dropdown */
+.add-grp{position:relative;display:inline-flex}
+.add-grp .sub-menu{display:none;position:absolute;top:100%;left:0;z-index:200;background:#2a2a2a;border:1px solid #555;border-radius:5px;padding:4px;flex-direction:column;gap:3px;min-width:200px;margin-top:2px}
+.add-grp:hover .sub-menu{display:flex}
+.sub-menu button{padding:5px 10px;border:1px solid #444;border-radius:3px;background:#333;color:#ccc;font-size:9.5pt;text-align:left;white-space:nowrap}
+.sub-menu button:hover{background:#4a6a9a;color:#fff;border-color:#7aacdd}
+
+/* ═══ SCROLL ═══ */
+#wrap{flex:1;overflow:auto;padding:14px;position:relative}
+
+/* ═══ DOCUMENT ═══ */
+#doc{background:#fff;max-width:1000px;margin:0 auto;border:1px solid #999;padding:14px 16px 22px;box-shadow:0 2px 14px rgba(0,0,0,.2);position:relative}
+
+/* header */
+#doc-hdr{text-align:center;margin-bottom:10px}
+.hdr-line{width:100%;text-align:center;border:none;outline:none;background:transparent;font-family:var(--F);color:#000;line-height:1.7;display:block}
+.hdr-line.t1{font-size:13pt;font-weight:bold;text-transform:uppercase;text-decoration:underline}
+.hdr-line.t2{font-size:11pt;font-weight:bold;text-transform:uppercase}
+.hdr-line::placeholder{color:#bbb;font-weight:normal;text-decoration:none;text-transform:none}
+.doc-band{margin:8px 0 0;border:2px solid #000;padding:5px;text-align:center;font-weight:bold;font-size:12pt;text-transform:uppercase}
+
+/* ═══ TABLE ═══ */
+#tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+col.cn{width:70px}
+col.cd{width:auto}
+col.cu{width:46px}
+col.cq{width:82px}
+col.cp{width:92px}
+col.ct{width:auto} /* auto-fit */
+
+thead th{border:1px solid #000;padding:5px 4px;text-align:center;font-family:var(--F);font-size:10pt;font-weight:bold;text-transform:uppercase;background:#d9d9d9;color:#000;vertical-align:middle}
+
+tbody td{border:1px solid #000;padding:0;vertical-align:middle;color:#000}
+
+/* inputs */
+input.di,textarea.di{display:block;width:100%;padding:5px 6px;border:none;outline:none;background:transparent;font-family:var(--F);font-size:var(--SZ);color:#000}
+textarea.di{resize:none;overflow:hidden}
+input.di:focus,textarea.di:focus{background:#fffbe6;outline:2px solid #c8a000;outline-offset:-2px}
+input.ni{display:block;width:100%;padding:5px 5px;border:none;outline:none;background:transparent;font-family:var(--F);font-size:var(--SZ);color:#000;text-align:right}
+input.ni:focus{background:#fffbe6;outline:2px solid #c8a000;outline-offset:-2px}
+select.ui{display:block;width:100%;padding:5px 2px;border:none;outline:none;background:transparent;text-align:center;color:#000;font-family:var(--F);font-size:var(--SZ);cursor:pointer}
+.nc{text-align:center;padding:4px 3px;font-family:var(--F);font-size:10pt;white-space:nowrap;color:#000}
+.tc{text-align:right;padding:5px 8px;font-family:var(--F);font-size:var(--SZ);white-space:nowrap}
+.tc.v{font-weight:bold}
+
+/* total rows */
+.tot-label{display:block;padding:5px 8px;font-weight:bold;text-transform:uppercase;font-family:var(--F);font-size:var(--SZ)}
+.tot-val{font-weight:bold;text-align:right;padding:5px 10px;font-family:var(--F);font-size:var(--SZ);white-space:nowrap}
+
+/* selected row highlight */
+tr.sel-row td{outline:2px solid #1a56a0;outline-offset:-1px}
+
+/* drag */
+.dragging{opacity:.3;outline:2px dashed #1a56a0}
+.dov-top td{border-top:3px solid #1a56a0!important}
+.dov-bot td{border-bottom:3px solid #1a56a0!important}
+
+/* ═══ FLOATING ROW CONTROLS ═══ */
+#float-ctrl{
+  display:none;
+  position:fixed;
+  z-index:500;
+  background:#1e1e1e;
+  border:1px solid #444;
+  border-radius:6px;
+  padding:3px 5px;
+  box-shadow:0 3px 12px rgba(0,0,0,.45);
+  display:flex;
+  gap:3px;
+  align-items:center;
+  pointer-events:auto;
+}
+#float-ctrl.hidden{display:none!important}
+.fc-btn{background:none;border:1px solid #444;padding:3px 8px;border-radius:4px;color:#ccc;font-size:10pt;cursor:pointer;line-height:1;white-space:nowrap}
+.fc-btn:hover{background:#4a6a9a;color:#fff;border-color:#7aacdd}
+.fc-btn.del:hover{background:#7a1010;color:#fff;border-color:#c03030}
+.fc-btn.dup:hover{background:#2a5a2a;color:#fff;border-color:#5aaa5a}
+.fc-sep{width:1px;height:18px;background:#444}
+.drag-h{cursor:grab;color:#888;font-size:14pt;padding:0 4px;user-select:none;border:1px solid #444;border-radius:3px;background:#2a2a2a;line-height:1.4}
+.drag-h:active{cursor:grabbing;background:#3a3a3a}
+
+/* ═══ COLOR PICKER ═══ */
+#colorpop{
+  display:none;position:fixed;z-index:999;background:#1e1e1e;border:1px solid #555;
+  border-radius:8px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.5);min-width:260px;
+}
+#colorpop.show{display:block}
+#colorpop h4{color:#ccc;font-size:9pt;margin-bottom:8px;font-family:var(--F)}
+.cp-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px}
+.cp-row label{color:#bbb;font-size:9pt;font-family:var(--F);flex:1}
+.cp-row input[type=color]{width:32px;height:24px;border:1px solid #444;background:none;cursor:pointer;border-radius:3px}
+.cp-close{width:100%;margin-top:8px;padding:5px;border:1px solid #555;border-radius:4px;background:#333;color:#ccc;font-size:9pt}
+.cp-close:hover{background:#4a6a9a;color:#fff}
+
+/* ═══ FOOTER ═══ */
+#foot{background:#222;padding:7px 14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;flex-shrink:0;border-top:2px solid #111}
+.fi{display:flex;flex-direction:column;gap:1px}
+.fl{font-size:7.5pt;font-weight:bold;color:#888;letter-spacing:1px;text-transform:uppercase;font-family:var(--F)}
+.fv{font-size:13pt;font-weight:bold;color:#fff;font-family:var(--F)}
+.fv.big{color:#6fd86f}
+.fsep{width:1px;height:28px;background:#444}
+
+/* notif */
+#nf{position:fixed;bottom:14px;right:14px;padding:7px 14px;background:#111;color:#fff;border-radius:5px;font-size:10pt;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9999;font-family:var(--F)}
+#nf.on{opacity:1}
+
+@media print{
+  #appbar,#foot,#nf,#float-ctrl,#colorpop{display:none!important}
+  body,#wrap{height:auto;overflow:visible;background:#fff}
+  #doc{box-shadow:none;border:none;padding:0;max-width:100%}
+  tr.sel-row td{outline:none}
+}
+</style>
+</head>
+<body>
+
+<!-- APP BAR -->
+<div id="appbar">
+  <div class="mode-grp">
+    <button class="mbtn on" id="bdqe" onclick="setMode('DQE')">DQE</button>
+    <button class="mbtn"    id="bbpu" onclick="setMode('BPU')">BPU</button>
+  </div>
+  <div class="sep"></div>
+
+  <!-- ADD MENU -->
+  <div class="add-grp">
+    <button class="abtn accent">＋ Ajouter ▾</button>
+    <div class="sub-menu">
+      <button onclick="addRow('chap')">  Chapitre (après sélection)</button>
+      <button onclick="addRow('sub',1)"> Sous-chapitre niv. 1</button>
+      <button onclick="addRow('sub',2)"> Sous-chapitre niv. 2</button>
+      <button onclick="addRow('sub',3)"> Sous-chapitre niv. 3</button>
+      <button onclick="addRow('art')">   Article  [+]</button>
+      <button onclick="addRow('subart')">Sous-article (a, b, c…)</button>
+      <button onclick="addRow('blank')"> Ligne vide / description</button>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+  <button class="abtn" onclick="collapseAll(true)">▸ Réduire tout</button>
+  <button class="abtn" onclick="collapseAll(false)">▾ Développer tout</button>
+  <div class="sep"></div>
+  <button class="abtn" onclick="openColorPicker(event)">🎨 Couleurs</button>
+  <div class="sep"></div>
+  <button class="abtn" onclick="saveJSON()">💾 Sauvegarder</button>
+  <label  class="abtn" style="cursor:pointer">📂 Ouvrir<input type="file" accept=".json" onchange="loadJSON(this)" style="display:none"/></label>
+  <button class="abtn" onclick="doExport()">⬇ Excel</button>
+  <button class="abtn" onclick="window.print()">🖨 Imprimer</button>
+  <div class="sep"></div>
+  <span class="grp-label">TVA %</span>
+  <input class="tva-inp" id="tva" type="number" value="19" min="0" max="100" step="0.5" oninput="recalc()"/>
+</div>
+
+<!-- FLOATING ROW CONTROLS -->
+<div id="float-ctrl" class="hidden">
+  <span class="drag-h" id="fc-drag" title="Déplacer">⠿</span>
+  <div class="fc-sep"></div>
+  <button class="fc-btn dup" onclick="dupSelected()" title="Dupliquer">⧉ Dupliquer</button>
+  <button class="fc-btn del" onclick="delSelected()" title="Supprimer">✕ Supprimer</button>
+</div>
+
+<!-- COLOR PICKER -->
+<div id="colorpop">
+  <h4>🎨 Couleurs par type de ligne</h4>
+  <div class="cp-row"><label>Chapitre fond / texte</label>
+    <input type="color" id="cc-chap-bg" value="#c00000" oninput="applyColors()"/>
+    <input type="color" id="cc-chap-fg" value="#ffffff" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Sous-chap niv.1 fond / texte</label>
+    <input type="color" id="cc-sub1-bg" value="#ffff00" oninput="applyColors()"/>
+    <input type="color" id="cc-sub1-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Sous-chap niv.2 fond / texte</label>
+    <input type="color" id="cc-sub2-bg" value="#bdd7ee" oninput="applyColors()"/>
+    <input type="color" id="cc-sub2-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Sous-chap niv.3 fond / texte</label>
+    <input type="color" id="cc-sub3-bg" value="#e2efda" oninput="applyColors()"/>
+    <input type="color" id="cc-sub3-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Article fond / texte</label>
+    <input type="color" id="cc-art-bg" value="#ffffff" oninput="applyColors()"/>
+    <input type="color" id="cc-art-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Sous-article fond / texte</label>
+    <input type="color" id="cc-sa-bg"  value="#f5f5f5" oninput="applyColors()"/>
+    <input type="color" id="cc-sa-fg"  value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Total sous-chapitre fond / texte</label>
+    <input type="color" id="cc-ts-bg" value="#c6efce" oninput="applyColors()"/>
+    <input type="color" id="cc-ts-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Total chapitre fond / texte</label>
+    <input type="color" id="cc-tc-bg" value="#ffff00" oninput="applyColors()"/>
+    <input type="color" id="cc-tc-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <div class="cp-row"><label>Total général fond / texte</label>
+    <input type="color" id="cc-gt-bg" value="#ffff00" oninput="applyColors()"/>
+    <input type="color" id="cc-gt-fg" value="#000000" oninput="applyColors()"/>
+  </div>
+  <button class="cp-close" onclick="closeColorPicker()">✕ Fermer</button>
+</div>
+
+<!-- DOCUMENT -->
+<div id="wrap">
+<div id="doc">
+  <div id="doc-hdr">
+    <input class="hdr-line t1" id="hl1" type="text" placeholder="TITRE DU PROJET…"/>
+    <input class="hdr-line t2" id="hl2" type="text" placeholder="Sous-titre ligne 2…"/>
+    <input class="hdr-line t2" id="hl3" type="text" placeholder="Sous-titre ligne 3…"/>
+    <div class="doc-band" id="doc-band">DETAIL QUANTITATIF ESTIMATIF</div>
+  </div>
+
+  <table id="tbl">
+    <colgroup>
+      <col class="cn"/><col class="cd"/><col class="cu"/>
+      <col class="cq"/><col class="cp"/><col class="ct"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>DESIGNATION DES OUVRAGES</th>
+        <th>U</th>
+        <th id="th-qty">Quantité</th>
+        <th>PRIX U HT</th>
+        <th id="th-tot">MONTANT HT</th>
+      </tr>
+    </thead>
+    <tbody id="body"></tbody>
+  </table>
+</div>
+</div>
+
+<!-- FOOTER -->
+<div id="foot">
+  <div class="fi"><div class="fl">Total HT</div><div class="fv big" id="fht">0,00 DA</div></div>
+  <div class="fsep"></div>
+  <div class="fi"><div class="fl">TVA <span id="fpct">19</span>%</div><div class="fv" id="ftva">0,00 DA</div></div>
+  <div class="fsep"></div>
+  <div class="fi"><div class="fl">Total TTC</div><div class="fv big" id="fttc">0,00 DA</div></div>
+  <div class="fsep"></div>
+  <div class="fi"><div class="fl">Articles</div><div class="fv" id="fcnt">0</div></div>
+</div>
+<div id="nf"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+const uid  = ()=>'r'+(nid++);
+const num  = v=>parseFloat(String(v||0).replace(',','.'))||0;
+const da   = n=>n.toLocaleString('fr-DZ',{minimumFractionDigits:2,maximumFractionDigits:2})+' DA';
+const esc  = s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const LETTERS='abcdefghijklmnopqrstuvwxyz';
+const UNITS=['M²','M³','ML','U','Ens','Kg','T','H','J','Forfait','Lot','M','Ml'];
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+function toRoman(n){ return ROMAN[n-1]||String(n); }
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+let rows   = [];
+let mode   = 'DQE';
+let nid    = 1;
+let selId  = null; // currently selected row id
+
+let C = {
+  chapBg:'#c00000', chapFg:'#ffffff',
+  sub1Bg:'#ffff00', sub1Fg:'#000000',
+  sub2Bg:'#bdd7ee', sub2Fg:'#000000',
+  sub3Bg:'#e2efda', sub3Fg:'#000000',
+  artBg: '#ffffff',  artFg: '#000000',
+  saBg:  '#f5f5f5',  saFg:  '#000000',
+  tsBg:  '#c6efce',  tsFg:  '#000000',
+  tcBg:  '#ffff00',  tcFg:  '#000000',
+  gtBg:  '#ffff00',  gtFg:  '#000000',
+};
+
+/* ═══════════════════════════════════════════
+   MODE
+═══════════════════════════════════════════ */
+function setMode(m){
+  mode=m;
+  document.getElementById('bdqe').className='mbtn'+(m==='DQE'?' on':'');
+  document.getElementById('bbpu').className='mbtn'+(m==='BPU'?' on':'');
+  document.getElementById('th-qty').style.visibility=m==='BPU'?'hidden':'visible';
+  document.getElementById('doc-band').textContent=
+    m==='DQE'?'DETAIL QUANTITATIF ESTIMATIF':'BORDEREAU DES PRIX UNITAIRES';
+  render();
+}
+
+/* ═══════════════════════════════════════════
+   SELECTION
+═══════════════════════════════════════════ */
+function selectRow(id, trEl, e){
+  // Don't steal focus from inputs
+  if(e&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')) return;
+  selId=id;
+  document.querySelectorAll('tr.sel-row').forEach(t=>t.classList.remove('sel-row'));
+  if(trEl) trEl.classList.add('sel-row');
+  positionFloatCtrl(trEl);
+}
+
+function positionFloatCtrl(trEl){
+  const fc=document.getElementById('float-ctrl');
+  if(!trEl){fc.classList.add('hidden');return;}
+  fc.classList.remove('hidden');
+  const rect=trEl.getBoundingClientRect();
+  const wrapRect=document.getElementById('wrap').getBoundingClientRect();
+  // position to the right of the row, vertically centered
+  const top=rect.top+rect.height/2-16;
+  let left=rect.right+6;
+  // If too far right, put above
+  if(left+200>window.innerWidth) left=rect.right-210;
+  fc.style.top=Math.max(44,top)+'px';
+  fc.style.left=Math.max(4,left)+'px';
+  // attach drag to selected row
+  const dh=document.getElementById('fc-drag');
+  dh.ondragstart=null;
+  dh.draggable=true;
+  dh.ondragstart=(ev)=>{
+    ev.dataTransfer.effectAllowed='move';
+    dragId=selId;
+    setTimeout(()=>{if(trEl)trEl.classList.add('dragging');},0);
+  };
+}
+
+function clearSelection(){
+  selId=null;
+  document.querySelectorAll('tr.sel-row').forEach(t=>t.classList.remove('sel-row'));
+  document.getElementById('float-ctrl').classList.add('hidden');
+}
+
+// Click outside clears selection
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#tbl')&&!e.target.closest('#float-ctrl')&&!e.target.closest('#appbar')&&!e.target.closest('#colorpop'))
+    clearSelection();
+},{passive:true});
+
+/* ═══════════════════════════════════════════
+   ADD / DEL / DUP
+   Insert AFTER selected row (or at end)
+═══════════════════════════════════════════ */
+function insertIdx(){
+  if(selId===null) return rows.length;
+  const idx=rows.findIndex(r=>r.id===selId);
+  return idx<0 ? rows.length : idx+1;
+}
+
+function addRow(type,level){
+  const id=uid();
+  let obj;
+  if(type==='chap')   obj={type,id,desig:'',collapsed:false};
+  if(type==='sub')    obj={type,id,desig:'',level:level||1,collapsed:false};
+  if(type==='art')    obj={type,id,desig:'',unite:'M²',qty:'',pu:''};
+  if(type==='subart') obj={type,id,desig:'',unite:'M²',qty:'',pu:''};
+  if(type==='blank')  obj={type,id,desig:''};
+  rows.splice(insertIdx(),0,obj);
+  selId=id;
+  render();
+  setTimeout(()=>{
+    const tr=document.getElementById('ro-'+id);
+    if(tr){
+      tr.classList.add('sel-row');
+      positionFloatCtrl(tr);
+      const inp=tr.querySelector('input.di,textarea.di');
+      if(inp){inp.focus();inp.select();}
+    }
+  },35);
+}
+
+// Keyboard shortcut: + to add article
+document.addEventListener('keydown',e=>{
+  if(e.key==='+'&&!e.ctrlKey&&!e.metaKey&&
+     e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){
+    e.preventDefault();
+    addRow('art');
+  }
+});
+
+function delSelected(){
+  if(!selId) return;
+  rows=rows.filter(r=>r.id!==selId);
+  selId=null;
+  document.getElementById('float-ctrl').classList.add('hidden');
+  render();
+}
+
+function dupSelected(){
+  if(!selId) return;
+  const idx=rows.findIndex(r=>r.id===selId);
+  if(idx<0)return;
+  const orig=rows[idx];
+  const newId=uid();
+  if(orig.type==='chap'){
+    const bl=[{...orig,id:newId,collapsed:false}];
+    for(let i=idx+1;i<rows.length;i++){if(rows[i].type==='chap')break;bl.push({...rows[i],id:uid()});}
+    rows.splice(idx+1,0,...bl);
+    selId=newId;
+  } else {
+    rows.splice(idx+1,0,{...orig,id:newId});
+    selId=newId;
+  }
+  render();
+  setTimeout(()=>{
+    const tr=document.getElementById('ro-'+selId);
+    if(tr){tr.classList.add('sel-row');positionFloatCtrl(tr);}
+  },35);
+  notif('✓ Dupliqué');
+}
+
+function upd(id,field,val){
+  const r=rows.find(r=>r.id===id);
+  if(r){r[field]=val;recalc();}
+}
+
+/* ═══════════════════════════════════════════
+   COLLAPSE
+═══════════════════════════════════════════ */
+function toggleCollapse(id,e){
+  e&&e.stopPropagation();
+  const r=rows.find(r=>r.id===id);
+  if(r){r.collapsed=!r.collapsed;render();}
+}
+function collapseAll(v){
+  rows.filter(r=>r.type==='chap'||r.type==='sub').forEach(r=>r.collapsed=v);
+  render();
+}
+
+/* ═══════════════════════════════════════════
+   VISIBILITY
+═══════════════════════════════════════════ */
+function buildVisibility(){
+  const hidden=new Set();
+  let collapsedChap=false;
+  let collapsedSubLv=null;
+  rows.forEach((r,i)=>{
+    if(r.type==='chap'){collapsedChap=r.collapsed;collapsedSubLv=null;return;}
+    if(r.type==='sub'){
+      if(collapsedChap){hidden.add(i);collapsedSubLv=null;return;}
+      if(collapsedSubLv!==null&&r.level<=collapsedSubLv)collapsedSubLv=null;
+      if(collapsedSubLv!==null){hidden.add(i);return;}
+      if(r.collapsed)collapsedSubLv=r.level;
+      return;
+    }
+    if(collapsedChap||collapsedSubLv!==null)hidden.add(i);
+  });
+  return hidden;
+}
+
+/* ═══════════════════════════════════════════
+   NUMBERING
+   - Chapters: Roman I, II, III… (independent)
+   - Sub-chapters: 1, 2, 3… CONTINUOUS across chapters
+   - Articles: subN.01, subN.02… reset per sub-chapter
+   - Sub-articles: a), b), c)… reset per article
+═══════════════════════════════════════════ */
+function buildNums(){
+  let chapN=0, subN=0, artN=0, saIdx=0;
+  const nums=[], letters=[];
+  rows.forEach(r=>{
+    if(r.type==='chap'){
+      chapN++; artN=0; saIdx=0;
+      nums.push(toRoman(chapN)); letters.push('');
+    } else if(r.type==='sub'){
+      subN++; artN=0; saIdx=0;
+      nums.push(String(subN)); letters.push('');
+    } else if(r.type==='art'){
+      artN++; saIdx=0;
+      const a=artN<10?'0'+artN:String(artN);
+      nums.push(subN+'.'+a); letters.push('');
+    } else if(r.type==='subart'){
+      nums.push(''); letters.push(LETTERS[saIdx]||String(saIdx+1));
+      saIdx++;
+    } else {
+      nums.push(''); letters.push('');
+    }
+  });
+  return {nums,letters};
+}
+
+/* ═══════════════════════════════════════════
+   TOTALS
+═══════════════════════════════════════════ */
+function artTotal(r){
+  if(r.type!=='art'&&r.type!=='subart')return 0;
+  if(mode==='BPU')return num(r.pu);
+  return num(r.qty)*num(r.pu);
+}
+function computeTotals(){
+  const chapT={},subT={};
+  let ci=null,subStack=[];
+  rows.forEach(r=>{
+    if(r.type==='chap'){ci=r.id;chapT[ci]=0;subStack=[];}
+    else if(r.type==='sub'){
+      subStack=subStack.filter(s=>s.level<(r.level||1));
+      subStack.push({id:r.id,level:r.level||1});
+      subT[r.id]=0;
+    } else if(r.type==='art'||r.type==='subart'){
+      const t=artTotal(r);
+      if(ci)chapT[ci]=(chapT[ci]||0)+t;
+      subStack.forEach(s=>{subT[s.id]=(subT[s.id]||0)+t;});
+    }
+  });
+  return {chapT,subT};
+}
+
+function recalc(){
+  const {chapT,subT}=computeTotals();
+  // art totals
+  rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
+    const el=document.getElementById('at-'+r.id);if(!el)return;
+    const t=artTotal(r);
+    el.textContent=t?da(t):'';el.className='tc'+(t?' v':'');
+  });
+  // sub totals
+  Object.entries(subT).forEach(([id,t])=>{const el=document.getElementById('st-'+id);if(el)el.textContent=da(t);});
+  // chap totals
+  Object.entries(chapT).forEach(([id,t])=>{const el=document.getElementById('ct-'+id);if(el)el.textContent=da(t);});
+  // grand
+  const grand=rows.filter(r=>r.type==='art'||r.type==='subart').reduce((s,r)=>s+artTotal(r),0);
+  const el=document.getElementById('gt-val');if(el)el.textContent=da(grand);
+  // footer
+  const tvaPct=num(document.getElementById('tva').value)/100;
+  document.getElementById('fht').textContent=da(grand);
+  document.getElementById('ftva').textContent=da(grand*tvaPct);
+  document.getElementById('fttc').textContent=da(grand+grand*tvaPct);
+  document.getElementById('fpct').textContent=document.getElementById('tva').value;
+  document.getElementById('fcnt').textContent=rows.filter(r=>r.type==='art').length;
+  // Auto-fit total column width
+  fitTotalCol();
+}
+
+/* Auto-fit the total column to its widest content */
+function fitTotalCol(){
+  const cells=document.querySelectorAll('#body td.tc, #body td.tot-val, #body .tot-val');
+  let maxW=110; // minimum
+  const dummy=document.createElement('span');
+  dummy.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font-family:Times New Roman,Times,serif;font-size:11pt;font-weight:bold;padding:5px 10px';
+  document.body.appendChild(dummy);
+  cells.forEach(td=>{
+    dummy.textContent=td.textContent||td.innerText||'';
+    maxW=Math.max(maxW,dummy.offsetWidth+2);
+  });
+  document.body.removeChild(dummy);
+  // Apply to col
+  const col=document.querySelector('#tbl col.ct');
+  if(col)col.style.width=maxW+'px';
+}
+
+/* ═══════════════════════════════════════════
+   TEXTAREA AUTO HEIGHT
+═══════════════════════════════════════════ */
+function ar(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+
+/* ═══════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════ */
+function render(){
+  const hidden=buildVisibility();
+  const {nums,letters}=buildNums();
+  const {chapT,subT}=computeTotals();
+
+  let html='';
+  let chapStk=[], subStk=[];
+
+  const subTotRow=(sub,vis)=>{
+    const h=vis?'':'style="display:none"';
+    return `<tr class="rts" data-ts="${sub.id}" ${h}>
+      <td style="background:${C.tsBg}"></td>
+      <td colspan="3" style="background:${C.tsBg}"><span class="tot-label" style="color:${C.tsFg}">Total ${esc(sub.desig||'')}</span></td>
+      <td style="background:${C.tsBg}"></td>
+      <td class="tot-val" style="background:${C.tsBg};color:${C.tsFg}" id="st-${sub.id}"></td>
+    </tr>`;
+  };
+  const chapTotRow=(chap)=>{
+    return `<tr class="rtc" data-tc="${chap.id}">
+      <td style="background:${C.tcBg}"></td>
+      <td colspan="3" style="background:${C.tcBg}"><span class="tot-label" style="color:${C.tcFg}">Total ${esc(chap.desig||'')}</span></td>
+      <td style="background:${C.tcBg}"></td>
+      <td class="tot-val" style="background:${C.tcBg};color:${C.tcFg}" id="ct-${chap.id}"></td>
+    </tr>`;
+  };
+
+  rows.forEach((r,i)=>{
+    const vis=!hidden.has(i);
+    const h=vis?'':'style="display:none"';
+    const n=nums[i], letter=letters[i];
+    const isSel=r.id===selId;
+    const selCls=isSel?' sel-row':'';
+
+    if(r.type==='chap'){
+      while(subStk.length){const s=subStk.pop();html+=subTotRow(s,false);}
+      if(chapStk.length)html+=chapTotRow(chapStk.pop());
+      chapStk.push({id:r.id,desig:r.desig});
+
+      html+=`<tr class="rc${selCls}" id="ro-${r.id}" draggable="false"
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${C.chapBg};color:${C.chapFg};cursor:pointer"
+          onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+        <td colspan="4" style="background:${C.chapBg}">
+          <input class="di" value="${esc(r.desig)}" placeholder="Nom du chapitre…"
+            style="color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
+            oninput="upd('${r.id}','desig',this.value)"/>
+        </td>
+        <td class="tc" style="background:${C.chapBg};color:${C.chapFg}" id="ct-${r.id}"></td>
+      </tr>`;
+    }
+
+    else if(r.type==='sub'){
+      const lv=r.level||1;
+      while(subStk.length&&subStk[subStk.length-1].level>=lv){
+        const s=subStk.pop();
+        html+=subTotRow(s,!hidden.has(rows.findIndex(x=>x.id===s.id)));
+      }
+      subStk.push({id:r.id,desig:r.desig,level:lv});
+      const bg=lv===1?C.sub1Bg:lv===2?C.sub2Bg:C.sub3Bg;
+      const fg=lv===1?C.sub1Fg:lv===2?C.sub2Fg:C.sub3Fg;
+      const pl=(lv-1)*20+8;
+
+      html+=`<tr class="rs${selCls}" id="ro-${r.id}" ${h}
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${bg};color:${fg};cursor:pointer;font-weight:bold"
+          onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+        <td colspan="4" style="background:${bg}">
+          <input class="di" value="${esc(r.desig)}" placeholder="Nom du sous-chapitre…"
+            style="color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
+            oninput="upd('${r.id}','desig',this.value)"/>
+        </td>
+        <td class="tc" style="background:${bg};color:${fg}" id="st-${r.id}"></td>
+      </tr>`;
+    }
+
+    else if(r.type==='art'){
+      const t=artTotal(r);
+      const qv=mode==='BPU'?'visibility:hidden':'';
+      html+=`<tr class="ra${selCls}" id="ro-${r.id}" ${h}
+        ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${C.artBg};color:${C.artFg}">${esc(n)}</td>
+        <td style="background:${C.artBg}">
+          <textarea class="di" rows="1" placeholder="Désignation de l'article…"
+            style="color:${C.artFg}"
+            oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
+        </td>
+        <td style="background:${C.artBg}">
+          <select class="ui" style="color:${C.artFg}" onchange="upd('${r.id}','unite',this.value)">
+            ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
+          </select>
+        </td>
+        <td style="background:${C.artBg};${qv}">
+          <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
+            style="color:${C.artFg}" oninput="upd('${r.id}','qty',this.value)" onkeydown="kn(event,'${r.id}','q')"/>
+        </td>
+        <td style="background:${C.artBg}">
+          <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
+            style="color:${C.artFg}" oninput="upd('${r.id}','pu',this.value)" onkeydown="kn(event,'${r.id}','p')"/>
+        </td>
+        <td class="tc${t?' v':''}" style="background:${C.artBg};color:${C.artFg}" id="at-${r.id}">${t?da(t):''}</td>
+      </tr>`;
+    }
+
+    else if(r.type==='subart'){
+      const t=artTotal(r);
+      const qv=mode==='BPU'?'visibility:hidden':'';
+      html+=`<tr class="rsa${selCls}" id="ro-${r.id}" ${h}
+        ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
+        onclick="selectRow('${r.id}',this,event)">
+        <td class="nc" style="background:${C.saBg};color:${C.saFg};padding-left:14px">${esc(letter)}</td>
+        <td style="background:${C.saBg}">
+          <textarea class="di" rows="1" placeholder="Sous-article (ex: ø 110mm)…"
+            style="color:${C.saFg};padding-left:18px"
+            oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
+        </td>
+        <td style="background:${C.saBg}">
+          <select class="ui" style="color:${C.saFg}" onchange="upd('${r.id}','unite',this.value)">
+            ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
+          </select>
+        </td>
+        <td style="background:${C.saBg};${qv}">
+          <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
+            style="color:${C.saFg}" oninput="upd('${r.id}','qty',this.value)"/>
+        </td>
+        <td style="background:${C.saBg}">
+          <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
+            style="color:${C.saFg}" oninput="upd('${r.id}','pu',this.value)"/>
+        </td>
+        <td class="tc${t?' v':''}" style="background:${C.saBg};color:${C.saFg}" id="at-${r.id}">${t?da(t):''}</td>
+      </tr>`;
+    }
+
+    else if(r.type==='blank'){
+      html+=`<tr class="rb${selCls}" id="ro-${r.id}" ${h}
+        onclick="selectRow('${r.id}',this,event)">
+        <td style="background:#fff"></td>
+        <td colspan="4" style="background:#fff">
+          <input class="di" value="${esc(r.desig)}" placeholder="Note / description…"
+            style="font-style:italic;color:#333" oninput="upd('${r.id}','desig',this.value)"/>
+        </td>
+        <td style="background:#fff"></td>
+      </tr>`;
+    }
+  });
+
+  // Close remaining
+  while(subStk.length){const s=subStk.pop();html+=subTotRow(s,true);}
+  if(chapStk.length)html+=chapTotRow(chapStk.pop());
+
+  // Grand total
+  const grand=rows.filter(r=>r.type==='art'||r.type==='subart').reduce((s,r)=>s+artTotal(r),0);
+  html+=`<tr class="rgt">
+    <td style="background:${C.gtBg}"></td>
+    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL GÉNÉRAL HT</span></td>
+    <td style="background:${C.gtBg}"></td>
+    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="gt-val">${da(grand)}</td>
+  </tr>`;
+
+  document.getElementById('body').innerHTML=html;
+
+  // Re-attach drag events on rows for drop targets
+  document.querySelectorAll('#body tr[id^="ro-"]').forEach(tr=>{
+    tr.addEventListener('dragover', e=>{ e.preventDefault(); dov2(e,tr); });
+    tr.addEventListener('dragleave',e=>dlv2(tr));
+    tr.addEventListener('drop',    e=>dp2(e,tr));
+  });
+
+  // Restore textarea heights
+  document.querySelectorAll('textarea.di').forEach(t=>{t.style.height='auto';t.style.height=t.scrollHeight+'px';});
+
+  // Re-highlight selected
+  if(selId){
+    const tr=document.getElementById('ro-'+selId);
+    if(tr){tr.classList.add('sel-row');positionFloatCtrl(tr);}
+    else clearSelection();
+  }
+
+  recalc();
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD NAV
+═══════════════════════════════════════════ */
+function kn(e,id,f){
+  if(e.key==='Tab'||(e.key==='Enter'&&f==='p')){
+    e.preventDefault();
+    const art=rows.filter(r=>r.type==='art'||r.type==='subart');
+    const idx=art.findIndex(r=>r.id===id);
+    if(f==='q'){fc2(id,'p');return;}
+    if(f==='p'){
+      if(idx<art.length-1)fc2(art[idx+1].id,'q');
+      else{selId=id;addRow('art');}
+    }
+  }
+}
+function fc2(id,f){
+  setTimeout(()=>{
+    const tr=document.getElementById('ro-'+id);if(!tr)return;
+    const inp=f==='q'?tr.querySelector('input.ni:nth-of-type(1)'):tr.querySelector('input.ni:nth-of-type(2)');
+    // simpler: get all ni inputs
+    const ins=tr.querySelectorAll('input.ni');
+    const inp2=f==='q'?ins[0]:ins[1];
+    if(inp2){inp2.focus();inp2.select();}
+  },20);
+}
+
+/* ═══════════════════════════════════════════
+   DRAG & DROP
+═══════════════════════════════════════════ */
+let dragId=null;
+function dov2(e,tr){
+  e.preventDefault();
+  document.querySelectorAll('.dov-top,.dov-bot').forEach(el=>el.classList.remove('dov-top','dov-bot'));
+  const rect=tr.getBoundingClientRect();
+  tr.classList.add(e.clientY<rect.top+rect.height/2?'dov-top':'dov-bot');
+}
+function dlv2(tr){ tr.classList.remove('dov-top','dov-bot'); }
+function dp2(e,tr){
+  e.preventDefault();
+  document.querySelectorAll('.dov-top,.dov-bot').forEach(el=>el.classList.remove('dov-top','dov-bot'));
+  const toId=tr.id.replace('ro-','');
+  if(!dragId||dragId===toId){dragId=null;return;}
+  const fromTr=document.getElementById('ro-'+dragId);if(fromTr)fromTr.classList.remove('dragging');
+  const fi=rows.findIndex(r=>r.id===dragId);
+  const ti=rows.findIndex(r=>r.id===toId);
+  if(fi<0||ti<0){dragId=null;return;}
+  const rect=tr.getBoundingClientRect();
+  const before=e.clientY<rect.top+rect.height/2;
+  const block=extractBlock(fi);
+  rows.splice(fi,block.length);
+  let ni=rows.findIndex(r=>r.id===toId);
+  if(!before)ni++;
+  if(ni<0)ni=rows.length;
+  rows.splice(ni,0,...block);
+  dragId=null;render();
+}
+// Kept for compatibility with inline handlers (now unused but safe)
+function dov(e,id){e.preventDefault();}
+function dlv(e,id){}
+function dp(e,id){e.preventDefault();}
+
+function extractBlock(idx){
+  const r=rows[idx];
+  if(r.type!=='chap')return[r];
+  const bl=[r];
+  for(let i=idx+1;i<rows.length;i++){if(rows[i].type==='chap')break;bl.push(rows[i]);}
+  return bl;
+}
+
+/* ═══════════════════════════════════════════
+   COLORS
+═══════════════════════════════════════════ */
+function openColorPicker(e){
+  e.stopPropagation();
+  const pop=document.getElementById('colorpop');
+  pop.style.top='44px';pop.style.right='14px';pop.style.left='auto';
+  // sync
+  const m={
+    'cc-chap-bg':C.chapBg,'cc-chap-fg':C.chapFg,
+    'cc-sub1-bg':C.sub1Bg,'cc-sub1-fg':C.sub1Fg,
+    'cc-sub2-bg':C.sub2Bg,'cc-sub2-fg':C.sub2Fg,
+    'cc-sub3-bg':C.sub3Bg,'cc-sub3-fg':C.sub3Fg,
+    'cc-art-bg':C.artBg,'cc-art-fg':C.artFg,
+    'cc-sa-bg':C.saBg,'cc-sa-fg':C.saFg,
+    'cc-ts-bg':C.tsBg,'cc-ts-fg':C.tsFg,
+    'cc-tc-bg':C.tcBg,'cc-tc-fg':C.tcFg,
+    'cc-gt-bg':C.gtBg,'cc-gt-fg':C.gtFg,
+  };
+  Object.entries(m).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
+  pop.classList.add('show');
+}
+function closeColorPicker(){ document.getElementById('colorpop').classList.remove('show'); }
+function applyColors(){
+  const g=id=>document.getElementById(id)?.value||'#000';
+  C={
+    chapBg:g('cc-chap-bg'),chapFg:g('cc-chap-fg'),
+    sub1Bg:g('cc-sub1-bg'),sub1Fg:g('cc-sub1-fg'),
+    sub2Bg:g('cc-sub2-bg'),sub2Fg:g('cc-sub2-fg'),
+    sub3Bg:g('cc-sub3-bg'),sub3Fg:g('cc-sub3-fg'),
+    artBg: g('cc-art-bg'), artFg: g('cc-art-fg'),
+    saBg:  g('cc-sa-bg'),  saFg:  g('cc-sa-fg'),
+    tsBg:  g('cc-ts-bg'),  tsFg:  g('cc-ts-fg'),
+    tcBg:  g('cc-tc-bg'),  tcFg:  g('cc-tc-fg'),
+    gtBg:  g('cc-gt-bg'),  gtFg:  g('cc-gt-fg'),
+  };
+  render();
+}
+
+/* ═══════════════════════════════════════════
+   SAVE / LOAD
+═══════════════════════════════════════════ */
+function saveJSON(){
+  if(!rows.length){notif('⚠ Aucune donnée');return;}
+  const d={
+    v:5,
+    l1:document.getElementById('hl1').value,
+    l2:document.getElementById('hl2').value,
+    l3:document.getElementById('hl3').value,
+    mode,tva:document.getElementById('tva').value,
+    rows,nid,C
+  };
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+  a.download=(d.l1||'devis').replace(/\s+/g,'_').substring(0,40)+'.json';
+  a.click();notif('✓ Projet sauvegardé');
+}
+function loadJSON(inp){
+  const f=inp.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);if(!d.rows)throw 0;
+      rows=d.rows;nid=d.nid||999;
+      if(d.C)C=d.C;
+      document.getElementById('hl1').value=d.l1||'';
+      document.getElementById('hl2').value=d.l2||'';
+      document.getElementById('hl3').value=d.l3||'';
+      document.getElementById('tva').value=d.tva||19;
+      setMode(d.mode||'DQE');render();notif('✓ Projet chargé');
+    }catch{notif('⚠ Fichier invalide');}
+  };
+  reader.readAsText(f);inp.value='';
+}
+
+/* ═══════════════════════════════════════════
+   EXPORT XLSX
+═══════════════════════════════════════════ */
+function doExport(){
+  if(!rows.length){notif('⚠ Aucune donnée');return;}
+  const wb=XLSX.utils.book_new();
+  const {nums,letters}=buildNums();
+  const {chapT,subT}=computeTotals();
+  const l1=document.getElementById('hl1').value;
+  const data=[];
+  data.push([l1]);
+  data.push([document.getElementById('hl2').value]);
+  data.push([document.getElementById('hl3').value]);
+  data.push([]);
+  data.push([mode==='DQE'?'DETAIL QUANTITATIF ESTIMATIF':'BORDEREAU DES PRIX UNITAIRES']);
+  data.push([]);
+  const hdr=['N°','DESIGNATION DES OUVRAGES','U'];
+  if(mode==='DQE')hdr.push('Quantité');
+  hdr.push('PRIX U HT','MONTANT HT');
+  data.push(hdr);
+
+  let chapStk=[],subStk2=[];
+  const pst2=()=>{
+    while(subStk2.length){
+      const s=subStk2.pop();const t=subT[s.id]||0;
+      const r=['','Total '+s.desig,''];if(mode==='DQE')r.push('');r.push('',t);data.push(r);
+    }
+  };
+  const pct2=()=>{
+    if(!chapStk.length)return;
+    const c=chapStk.pop();const t=chapT[c.id]||0;
+    const r=['','Total '+c.desig,''];if(mode==='DQE')r.push('');r.push('',t);data.push(r);
+  };
+
+  rows.forEach((r,i)=>{
+    const n=nums[i],letter=letters[i];
+    if(r.type==='chap'){
+      pst2();pct2();chapStk.push({id:r.id,desig:r.desig});
+      const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    } else if(r.type==='sub'){
+      const lv=r.level||1;
+      while(subStk2.length&&subStk2[subStk2.length-1].level>=lv){
+        const s=subStk2.pop();const t=subT[s.id]||0;
+        const rx=['','Total '+s.desig,''];if(mode==='DQE')rx.push('');rx.push('',t);data.push(rx);
+      }
+      subStk2.push({id:r.id,desig:r.desig,level:lv});
+      const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    } else if(r.type==='art'){
+      const t=artTotal(r);const row=[n,r.desig,r.unite];
+      if(mode==='DQE')row.push(num(r.qty));row.push(num(r.pu),t);data.push(row);
+    } else if(r.type==='subart'){
+      const t=artTotal(r);const row=[letter,r.desig,r.unite];
+      if(mode==='DQE')row.push(num(r.qty));row.push(num(r.pu),t);data.push(row);
+    } else if(r.type==='blank'){
+      const row=['',r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    }
+  });
+  pst2();pct2();
+
+  const grand=rows.filter(r=>r.type==='art'||r.type==='subart').reduce((s,r)=>s+artTotal(r),0);
+  const tvaPct=num(document.getElementById('tva').value)/100;
+  data.push([]);
+  const mk=(l,v)=>{const r=['',l,''];if(mode==='DQE')r.push('');r.push('',v);return r;};
+  data.push(mk('TOTAL GÉNÉRAL HT',grand));
+  data.push(mk('TVA '+document.getElementById('tva').value+'%',grand*tvaPct));
+  data.push(mk('TOTAL TTC',grand+grand*tvaPct));
+
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:10},{wch:55},{wch:6},...(mode==='DQE'?[{wch:10}]:[]),{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,mode);
+  XLSX.writeFile(wb,(l1||'devis').replace(/\s+/g,'_').substring(0,40)+'_'+mode+'.xlsx');
+  notif('✓ Excel exporté');
+}
+
+/* ═══════════════════════════════════════════
+   NOTIF
+═══════════════════════════════════════════ */
+function notif(m){
+  const e=document.getElementById('nf');
+  e.textContent=m;e.classList.add('on');
+  setTimeout(()=>e.classList.remove('on'),2400);
+}
+
+/* ═══════════════════════════════════════════
+   INIT — empty
+═══════════════════════════════════════════ */
+window.onload=()=>{ rows=[]; render(); };
+</script>
+</body>
+</html>

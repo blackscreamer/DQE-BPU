@@ -107,13 +107,39 @@ tr.sel-row td { outline: 2px solid #1a56a0; outline-offset: -1px; }
 #save-ind.saved { color: #6fd86f; }
 #save-ind.error { color: #ff6b6b; }
 
+/* ═══ BPU SUBLINE ═══ */
+.bpu-subline {
+  font-size: 9pt; font-style: italic; color: #555;
+  padding: 1px 6px 4px 6px;
+  font-family: var(--F);
+  text-transform: uppercase;
+  line-height: 1.4;
+  border-top: 1px dotted #ccc;
+  margin-top: 2px;
+}
+
+/* ═══ BPU PRICE COLUMN ═══ */
+col.cp-bpu { width: 130px; }
+
+/* ═══ MULTI-SELECT ═══ */
+tr.sel-multi td { outline: 2px solid #2a8a2a; outline-offset: -1px; }
+
+/* ═══ NO-PRICES MODE ═══ */
+#tbl.no-prices .price-cell { visibility: hidden !important; }
+#tbl.no-prices .rts, #tbl.no-prices .rtc,
+#tbl.no-prices .rgt, #tbl.no-prices .rtva,
+#tbl.no-prices .rttc { display: none !important; }
+
 /* ═══ PRINT ═══ */
 @media print {
   #appbar, #foot, #nf, #float-ctrl, .offcanvas, .offcanvas-backdrop { display: none !important; }
   body, #wrap { height: auto; overflow: visible; background: #fff; }
   #doc { box-shadow: none; border: none; padding: 0; max-width: 100%; }
-  tr.sel-row td { outline: none; }
+  tr.sel-row td, tr.sel-multi td { outline: none; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #tbl.no-prices .rts, #tbl.no-prices .rtc,
+  #tbl.no-prices .rgt, #tbl.no-prices .rtva,
+  #tbl.no-prices .rttc { display: none !important; }
 }
 
 /* ═══ TOAST ═══ */
@@ -220,6 +246,14 @@ tr.sel-row td { outline: 2px solid #1a56a0; outline-offset: -1px; }
 
     <div class="toolbar-sep"></div>
 
+    <!-- Prices toggle -->
+    <button id="btn-prices" class="btn btn-sm btn-outline-warning text-light"
+            onclick="togglePrices()" title="Afficher / Masquer les prix (impression sans prix)">
+      <i class="bi bi-eye-fill"></i> <span class="d-none d-lg-inline">Prix</span>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
     <!-- TVA -->
     <div class="d-flex align-items-center gap-1">
       <span style="font-size:9pt;color:#7a90b0;white-space:nowrap">TVA %</span>
@@ -233,6 +267,7 @@ tr.sel-row td { outline: 2px solid #1a56a0; outline-offset: -1px; }
 <div id="float-ctrl" class="hidden">
   <span class="drag-h" id="fc-drag" title="Déplacer">⠿</span>
   <div class="fc-sep"></div>
+  <span id="fc-count" style="display:none;color:#aef;font-size:9pt;padding:0 4px;white-space:nowrap"></span>
   <button class="fc-btn dup" onclick="dupSelected()" title="Dupliquer">⧉ Dupliquer</button>
   <button class="fc-btn del" onclick="delSelected()" title="Supprimer">✕ Supprimer</button>
 </div>
@@ -355,10 +390,90 @@ const UNITS=['M²','M³','ML','U','Ens','Kg','T','H','J','Forfait','Lot','M','Ml
 const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
 function toRoman(n){ return ROMAN[n-1]||String(n); }
 
-let rows   = [];
-let mode   = 'DQE';
-let nid    = 1;
-let selId  = null;
+/* ═══ BPU UNIT WORDS ═══ */
+const UNIT_WORDS = {
+  'M²':'LE METRE CARRE','M³':'LE METRE CUBE',
+  'ML':'LE METRE LINEAIRE','M':'LE METRE',
+  'Ml':'LE MILLILITRE','U':"L'UNITE",
+  'Ens':"L'ENSEMBLE",'Kg':'LE KILOGRAMME',
+  'T':'LA TONNE','H':"L'HEURE",
+  'J':'LE JOUR','Forfait':'LE FORFAIT','Lot':'LE LOT',
+};
+
+/* ═══ FRENCH NUMBER TO WORDS ═══ */
+function numToWordsFr(n){
+  n=Math.round(n);
+  if(n===0)return'ZERO';
+  if(n<0)return'MOINS '+numToWordsFr(-n);
+  const ones=['','UN','DEUX','TROIS','QUATRE','CINQ','SIX','SEPT','HUIT','NEUF',
+    'DIX','ONZE','DOUZE','TREIZE','QUATORZE','QUINZE','SEIZE',
+    'DIX-SEPT','DIX-HUIT','DIX-NEUF'];
+  const tens=['','','VINGT','TRENTE','QUARANTE','CINQUANTE',
+    'SOIXANTE','SOIXANTE','QUATRE-VINGT','QUATRE-VINGT'];
+  function b100(n){
+    if(n<20)return ones[n];
+    const t=Math.floor(n/10),u=n%10;
+    if(t===7)return u===1?'SOIXANTE ET ONZE':'SOIXANTE-'+ones[10+u];
+    if(t===8)return u===0?'QUATRE-VINGTS':'QUATRE-VINGT-'+ones[u];
+    if(t===9)return u===0?'QUATRE-VINGT-DIX':'QUATRE-VINGT-'+ones[10+u];
+    if(u===0)return tens[t];
+    return tens[t]+(u===1?' ET UN':'-'+ones[u]);
+  }
+  function b1000(n){
+    if(n<100)return b100(n);
+    const h=Math.floor(n/100),r=n%100;
+    const hp=(h===1?'CENT':ones[h]+' CENT')+(r===0&&h>1?'S':'');
+    return r===0?hp:hp+' '+b100(r);
+  }
+  let res='',rem=n;
+  if(rem>=1000000){
+    const m=Math.floor(rem/1000000);
+    res+=b1000(m)+' MILLION'+(m>1?'S':'');
+    rem%=1000000; if(rem)res+=' ';
+  }
+  if(rem>=1000){
+    const k=Math.floor(rem/1000);
+    res+=(k===1?'MILLE':b1000(k)+' MILLE');
+    rem%=1000; if(rem)res+=' ';
+  }
+  if(rem>0)res+=b1000(rem);
+  return res;
+}
+
+function buildBpuSubline(unite,pu){
+  const uw=UNIT_WORDS[unite]||(unite?unite.toUpperCase():'');
+  if(!showPrices||!pu)return uw;
+  return uw+'\u00A0: '+numToWordsFr(pu)+' DINAR ALGERIEN';
+}
+
+/* ═══ PRICES TOGGLE ═══ */
+function togglePrices(){
+  showPrices=!showPrices;
+  const btn=document.getElementById('btn-prices');
+  if(btn){
+    btn.innerHTML=showPrices
+      ?'<i class="bi bi-eye-fill"></i> <span class="d-none d-lg-inline">Prix</span>'
+      :'<i class="bi bi-eye-slash-fill"></i> <span class="d-none d-lg-inline">Prix</span>';
+    btn.classList.toggle('btn-outline-warning',showPrices);
+    btn.classList.toggle('btn-outline-danger',!showPrices);
+  }
+  document.getElementById('tbl').classList.toggle('no-prices',!showPrices);
+  // Update BPU sublines (no full re-render needed for DQE)
+  if(mode==='BPU'){
+    rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
+      const sl=document.getElementById('sl-'+r.id);
+      if(sl)sl.textContent=buildBpuSubline(r.bpu_unite||r.unite,num(r.bpu_pu!==undefined?r.bpu_pu:r.pu));
+    });
+  }
+  triggerAutosave();
+}
+
+let rows       = [];
+let mode       = 'DQE';
+let nid        = 1;
+let selId      = null;
+let selIds     = new Set(); // multi-selection
+let showPrices = true;
 let fileHandle = null; // For File System API
 
 let C = {
@@ -420,7 +535,7 @@ let saveTimeout;
 
 function getSaveData() {
     return {
-        v:6, rows, mode, nid, C,
+        v:7, rows, mode, nid, C, showPrices,
         tva: document.getElementById('tva').value,
         l1: document.getElementById('hl1').value,
         l2: document.getElementById('hl2').value,
@@ -432,19 +547,35 @@ function saveLocal() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(getSaveData()));
 }
 
+function applyLoadedData(d){
+    rows = d.rows || [];
+    nid = d.nid || 1;
+    if(d.C) C = d.C;
+    document.getElementById('tva').value = d.tva || 19;
+    document.getElementById('hl1').value = d.l1 || '';
+    document.getElementById('hl2').value = d.l2 || '';
+    document.getElementById('hl3').value = d.l3 || '';
+    if(d.showPrices !== undefined){
+        showPrices = d.showPrices;
+        const btn=document.getElementById('btn-prices');
+        if(btn){
+            btn.innerHTML=showPrices
+                ?'<i class="bi bi-eye-fill"></i> <span class="d-none d-lg-inline">Prix</span>'
+                :'<i class="bi bi-eye-slash-fill"></i> <span class="d-none d-lg-inline">Prix</span>';
+            btn.classList.toggle('btn-outline-warning',showPrices);
+            btn.classList.toggle('btn-outline-danger',!showPrices);
+        }
+        document.getElementById('tbl').classList.toggle('no-prices',!showPrices);
+    }
+    setMode(d.mode || 'DQE');
+}
+
 function loadLocal() {
     const str = localStorage.getItem(STORAGE_KEY);
     if(str) {
         try {
             const d = JSON.parse(str);
-            rows = d.rows || [];
-            nid = d.nid || 1;
-            if(d.C) C = d.C;
-            if(d.mode) setMode(d.mode);
-            document.getElementById('tva').value = d.tva || 19;
-            document.getElementById('hl1').value = d.l1 || '';
-            document.getElementById('hl2').value = d.l2 || '';
-            document.getElementById('hl3').value = d.l3 || '';
+            applyLoadedData(d);
             return true;
         } catch(e) { console.error("Corrupted local storage"); return false; }
     }
@@ -540,13 +671,7 @@ async function openFile(inp) {
         try {
             const d = JSON.parse(e.target.result);
             if(!d.rows) throw 0;
-            rows = d.rows; nid = d.nid || 999;
-            if(d.C) C = d.C;
-            document.getElementById('hl1').value=d.l1||'';
-            document.getElementById('hl2').value=d.l2||'';
-            document.getElementById('hl3').value=d.l3||'';
-            document.getElementById('tva').value=d.tva||19;
-            setMode(d.mode||'DQE');
+            applyLoadedData(d);
             render(); 
             snapshot();
             saveLocal();
@@ -564,9 +689,22 @@ function setMode(m){
   mode=m;
   document.getElementById('bdqe').className='mbtn'+(m==='DQE'?' on':'');
   document.getElementById('bbpu').className='mbtn'+(m==='BPU'?' on':'');
-  document.getElementById('th-qty').style.visibility=m==='BPU'?'hidden':'visible';
   document.getElementById('doc-band').textContent=
     m==='DQE'?'DETAIL QUANTITATIF ESTIMATIF':'BORDEREAU DES PRIX UNITAIRES';
+  // Rebuild colgroup
+  const cg=document.querySelector('#tbl colgroup');
+  if(cg) cg.innerHTML=m==='DQE'
+    ?`<col class="cn"/><col class="cd"/><col class="cu"/>
+      <col class="cq"/><col class="cp"/><col class="ct"/>`
+    :`<col class="cn"/><col class="cd"/><col class="cp-bpu"/>`;
+  // Rebuild thead
+  const th=document.querySelector('#tbl thead tr');
+  if(th) th.innerHTML=m==='DQE'
+    ?`<th>N°</th><th>DESIGNATION DES OUVRAGES</th><th>U</th>
+      <th>Quantité</th><th>PRIX U HT</th><th>MONTANT HT</th>`
+    :`<th style="width:70px">N°</th>
+      <th>DESIGNATION DES OUVRAGES</th>
+      <th style="width:130px">PRIX UNITAIRE HT</th>`;
   render();
 }
 
@@ -580,10 +718,39 @@ function handleTvaChange() {
 ═══════════════════════════════════════════ */
 function selectRow(id,trEl,e){
   if(e&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'))return;
-  selId=id;
-  document.querySelectorAll('tr.sel-row').forEach(t=>t.classList.remove('sel-row'));
-  if(trEl)trEl.classList.add('sel-row');
-  positionFloatCtrl(trEl);
+
+  if(e&&(e.ctrlKey||e.metaKey)){
+    // Ctrl+click: toggle this row in multi-selection
+    if(selIds.has(id)){selIds.delete(id);}
+    else{selIds.add(id);}
+    selId=id;
+  } else if(e&&e.shiftKey&&selId){
+    // Shift+click: range select from anchor selId to current id
+    const fromIdx=rows.findIndex(r=>r.id===selId);
+    const toIdx=rows.findIndex(r=>r.id===id);
+    const lo=Math.min(fromIdx,toIdx), hi=Math.max(fromIdx,toIdx);
+    for(let i=lo;i<=hi;i++)selIds.add(rows[i].id);
+    // selId stays as anchor
+  } else {
+    // Plain click: single select
+    selIds.clear();
+    selIds.add(id);
+    selId=id;
+  }
+
+  // Apply visual classes
+  document.querySelectorAll('tr.sel-row,tr.sel-multi').forEach(t=>{
+    t.classList.remove('sel-row','sel-multi');
+  });
+  selIds.forEach(sid=>{
+    const tr=document.getElementById('ro-'+sid);
+    if(tr)tr.classList.add(selIds.size===1?'sel-row':'sel-multi');
+  });
+  // Anchor row always gets sel-row highlight
+  if(trEl){
+    if(selIds.size>1){trEl.classList.remove('sel-multi');trEl.classList.add('sel-row');}
+    positionFloatCtrl(trEl);
+  }
 }
 
 function positionFloatCtrl(trEl){
@@ -593,22 +760,29 @@ function positionFloatCtrl(trEl){
   const rect=trEl.getBoundingClientRect();
   const top=rect.top+rect.height/2-16;
   let left=rect.right+6;
-  if(left+200>window.innerWidth)left=rect.right-210;
+  if(left+210>window.innerWidth)left=rect.right-215;
   fc.style.top=Math.max(44,top)+'px';
   fc.style.left=Math.max(4,left)+'px';
+  const cnt=document.getElementById('fc-count');
+  if(cnt){cnt.style.display=selIds.size>1?'':'none';cnt.textContent=selIds.size>1?selIds.size+' sél.':'';}
   const dh=document.getElementById('fc-drag');
   dh.ondragstart=null;
   dh.draggable=true;
   dh.ondragstart=(ev)=>{
     ev.dataTransfer.effectAllowed='move';
-    dragId=selId;
-    setTimeout(()=>{if(trEl)trEl.classList.add('dragging');},0);
+    // Drag all selected if current row is in selection
+    dragIds=selIds.has(selId)&&selIds.size>1?[...selIds]:([selId]);
+    dragIds=rows.filter(r=>dragIds.includes(r.id)).map(r=>r.id); // sort by row order
+    setTimeout(()=>{
+      dragIds.forEach(did=>{const t=document.getElementById('ro-'+did);if(t)t.classList.add('dragging');});
+    },0);
   };
 }
 
 function clearSelection(){
   selId=null;
-  document.querySelectorAll('tr.sel-row').forEach(t=>t.classList.remove('sel-row'));
+  selIds.clear();
+  document.querySelectorAll('tr.sel-row,tr.sel-multi').forEach(t=>t.classList.remove('sel-row','sel-multi'));
   document.getElementById('float-ctrl').classList.add('hidden');
 }
 
@@ -668,36 +842,36 @@ document.addEventListener('keydown',e=>{
 });
 
 function delSelected(){
-  if(!selId)return;
-  snapshot(); 
-  const idx=rows.findIndex(r=>r.id===selId);
-  if(idx<0)return;
-  const block=extractBlock(idx);
-  rows.splice(idx,block.length);
-  selId=null;
+  if(!selId&&!selIds.size)return;
+  snapshot();
+  const toDelete=selIds.size>0?new Set(selIds):new Set([selId]);
+  rows=rows.filter(r=>!toDelete.has(r.id));
+  selId=null; selIds.clear();
   document.getElementById('float-ctrl').classList.add('hidden');
   render();
   triggerAutosave();
-  notif('✕ Supprimé');
+  notif('✕ '+toDelete.size+' supprimé'+(toDelete.size>1?'s':''));
 }
 
 function dupSelected(){
-  if(!selId)return;
-  snapshot(); 
-  const idx=rows.findIndex(r=>r.id===selId);
-  if(idx<0)return;
-  const newId=uid();
-  const block=extractBlock(idx);
-  const cloned=block.map((r,bi)=>({...r,id:bi===0?newId:uid()}));
-  rows.splice(idx+block.length,0,...cloned);
-  selId=newId;
+  if(!selId&&!selIds.size)return;
+  snapshot();
+  const ids=selIds.size>0?[...selIds]:[selId];
+  // Sort by row order
+  const ordered=rows.filter(r=>ids.includes(r.id));
+  if(!ordered.length)return;
+  const lastIdx=Math.max(...ordered.map(r=>rows.indexOf(r)));
+  const newIds=new Set();
+  const clones=ordered.map(r=>{const n={...r,id:uid()};newIds.add(n.id);return n;});
+  rows.splice(lastIdx+1,0,...clones);
+  selIds=newIds; selId=clones[0].id;
   render();
   setTimeout(()=>{
     const tr=document.getElementById('ro-'+selId);
     if(tr){tr.classList.add('sel-row');positionFloatCtrl(tr);}
   },35);
   triggerAutosave();
-  notif('✓ Dupliqué');
+  notif('✓ '+clones.length+' dupliqué'+(clones.length>1?'s':''));
 }
 
 function upd(id, field, val) {
@@ -807,31 +981,45 @@ function grandTotal(){
 
 function recalc(){
   const{chapT,subT}=computeTotals();
-  rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
-    const el=document.getElementById('at-'+r.id);if(!el)return;
-    const t=(r.type==='art'&&artHasSubarts(r.id))?0:artTotal(r);
-    el.textContent=t?da(t):'';
-    el.className='tc'+(t?' v':'');
-  });
-  Object.entries(subT).forEach(([id,t])=>{const el=document.getElementById('st-'+id);if(el)el.textContent=da(t);});
-  Object.entries(chapT).forEach(([id,t])=>{const el=document.getElementById('ct-'+id);if(el)el.textContent=da(t);});
-  
-  const grand=grandTotal();
-  const tvaPct=num(document.getElementById('tva').value)/100;
-  const tvaAmt=grand*tvaPct;
-  
-  document.getElementById('gt-val').textContent=da(grand);
-  document.getElementById('tva-val').textContent=da(tvaAmt);
-  document.getElementById('ttc-val').textContent=da(grand+tvaAmt);
-  document.getElementById('tva-label').textContent='TVA ('+document.getElementById('tva').value+'%)';
-  
-  document.getElementById('fht').textContent=da(grand);
-  document.getElementById('ftva').textContent=da(tvaAmt);
-  document.getElementById('fttc').textContent=da(grand+tvaAmt);
+  const isBPU=mode==='BPU';
+
+  if(!isBPU){
+    rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
+      const el=document.getElementById('at-'+r.id);if(!el)return;
+      const t=(r.type==='art'&&artHasSubarts(r.id))?0:artTotal(r);
+      el.textContent=t?da(t):'';
+      el.className='tc'+(t?' v':'')+(showPrices?'':' price-cell');
+    });
+    Object.entries(subT).forEach(([id,t])=>{const el=document.getElementById('st-'+id);if(el)el.textContent=da(t);});
+    Object.entries(chapT).forEach(([id,t])=>{const el=document.getElementById('ct-'+id);if(el)el.textContent=da(t);});
+    const grand=grandTotal();
+    const tvaPct=num(document.getElementById('tva').value)/100;
+    const tvaAmt=grand*tvaPct;
+    const elGt=document.getElementById('gt-val');if(elGt)elGt.textContent=da(grand);
+    const elTva=document.getElementById('tva-val');if(elTva)elTva.textContent=da(tvaAmt);
+    const elTtc=document.getElementById('ttc-val');if(elTtc)elTtc.textContent=da(grand+tvaAmt);
+    const elLbl=document.getElementById('tva-label');if(elLbl)elLbl.textContent='TVA ('+document.getElementById('tva').value+'%)';
+    document.getElementById('fht').textContent=da(grand);
+    document.getElementById('ftva').textContent=da(tvaAmt);
+    document.getElementById('fttc').textContent=da(grand+tvaAmt);
+  }else{
+    // BPU: update sublines live when pu/unite changes
+    rows.filter(r=>r.type==='art'||r.type==='subart').forEach(r=>{
+      const sl=document.getElementById('sl-'+r.id);
+      if(sl){
+        const bPu=r.bpu_pu!==undefined?r.bpu_pu:r.pu;
+        const bUnite=r.bpu_unite!==undefined?r.bpu_unite:r.unite;
+        sl.textContent=buildBpuSubline(bUnite,num(bPu));
+      }
+    });
+    document.getElementById('fht').textContent='—';
+    document.getElementById('ftva').textContent='—';
+    document.getElementById('fttc').textContent='—';
+  }
+
   document.getElementById('fpct').textContent=document.getElementById('tva').value;
   document.getElementById('fcnt').textContent=rows.filter(r=>r.type==='art').length;
-  
-  adjustColumns(); // Dynamic width adjustment
+  adjustColumns();
 }
 
 /* ═══════════════════════════════════════════
@@ -903,16 +1091,18 @@ function render(){
   const hidden=buildVisibility();
   const{nums,letters}=buildNums();
   const{chapT,subT}=computeTotals();
+  const isBPU=mode==='BPU';
   let html='';
   let chapStk=[],subStk=[];
 
+  // ── DQE total rows ──
   const subTotRow=(sub,vis)=>{
     const h=vis?'':'style="display:none"';
     return`<tr class="rts" data-ts="${sub.id}" ${h}>
       <td style="background:${C.tsBg}"></td>
       <td colspan="3" style="background:${C.tsBg}"><span class="tot-label" style="color:${C.tsFg}">Total ${esc(sub.desig||'')}</span></td>
       <td style="background:${C.tsBg}"></td>
-      <td class="tot-val" style="background:${C.tsBg};color:${C.tsFg}" id="st-${sub.id}"></td>
+      <td class="tot-val price-cell" style="background:${C.tsBg};color:${C.tsFg}" id="st-${sub.id}"></td>
     </tr>`;
   };
   const chapTotRow=(chap)=>{
@@ -920,7 +1110,7 @@ function render(){
       <td style="background:${C.tcBg}"></td>
       <td colspan="3" style="background:${C.tcBg}"><span class="tot-label" style="color:${C.tcFg}">Total ${esc(chap.desig||'')}</span></td>
       <td style="background:${C.tcBg}"></td>
-      <td class="tot-val" style="background:${C.tcBg};color:${C.tcFg}" id="ct-${chap.id}"></td>
+      <td class="tot-val price-cell" style="background:${C.tcBg};color:${C.tcFg}" id="ct-${chap.id}"></td>
     </tr>`;
   };
 
@@ -928,146 +1118,232 @@ function render(){
     const vis=!hidden.has(i);
     const h=vis?'':'style="display:none"';
     const n=nums[i],letter=letters[i];
-    const isSel=r.id===selId;
-    const selCls=isSel?' sel-row':'';
+    const selCls=selIds.has(r.id)?(selIds.size===1?' sel-row':r.id===selId?' sel-row':' sel-multi'):'';
 
     if(r.type==='chap'){
-      while(subStk.length){const s=subStk.pop();html+=subTotRow(s,false);}
-      if(chapStk.length)html+=chapTotRow(chapStk.pop());
+      if(!isBPU){
+        while(subStk.length){const s=subStk.pop();html+=subTotRow(s,false);}
+        if(chapStk.length)html+=chapTotRow(chapStk.pop());
+      }else{
+        subStk=[];chapStk=[];
+      }
       chapStk.push({id:r.id,desig:r.desig});
-      html+=`<tr class="rc${selCls}" id="ro-${r.id}" draggable="false"
-        onclick="selectRow('${r.id}',this,event)">
-        <td class="nc" style="background:${C.chapBg};color:${C.chapFg};cursor:pointer"
-          onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
-        <td colspan="4" style="background:${C.chapBg}">
-          <input class="di" value="${esc(r.desig)}" placeholder="Nom du chapitre…"
-            style="color:${C.chapFg}!important;-webkit-text-fill-color:${C.chapFg};caret-color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
-            oninput="upd('${r.id}','desig',this.value)"/>
-        </td>
-        <td style="background:${C.chapBg}"></td>
-      </tr>`;
+      if(isBPU){
+        html+=`<tr class="rc${selCls}" id="ro-${r.id}" draggable="false"
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${C.chapBg};color:${C.chapFg};cursor:pointer"
+            onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+          <td style="background:${C.chapBg}">
+            <input class="di" value="${esc(r.desig)}" placeholder="Nom du chapitre…"
+              style="color:${C.chapFg}!important;-webkit-text-fill-color:${C.chapFg};caret-color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
+              oninput="upd('${r.id}','desig',this.value)"/>
+          </td>
+          <td style="background:${C.chapBg}"></td>
+        </tr>`;
+      }else{
+        html+=`<tr class="rc${selCls}" id="ro-${r.id}" draggable="false"
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${C.chapBg};color:${C.chapFg};cursor:pointer"
+            onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+          <td colspan="4" style="background:${C.chapBg}">
+            <input class="di" value="${esc(r.desig)}" placeholder="Nom du chapitre…"
+              style="color:${C.chapFg}!important;-webkit-text-fill-color:${C.chapFg};caret-color:${C.chapFg};font-weight:bold;font-size:12pt;text-transform:uppercase"
+              oninput="upd('${r.id}','desig',this.value)"/>
+          </td>
+          <td style="background:${C.chapBg}"></td>
+        </tr>`;
+      }
     }
     else if(r.type==='sub'){
       const lv=r.level||1;
-      while(subStk.length&&subStk[subStk.length-1].level>=lv){
-        const s=subStk.pop();
-        html+=subTotRow(s,!hidden.has(rows.findIndex(x=>x.id===s.id)));
+      if(!isBPU){
+        while(subStk.length&&subStk[subStk.length-1].level>=lv){
+          const s=subStk.pop();
+          html+=subTotRow(s,!hidden.has(rows.findIndex(x=>x.id===s.id)));
+        }
+      }else{
+        while(subStk.length&&subStk[subStk.length-1].level>=lv)subStk.pop();
       }
       subStk.push({id:r.id,desig:r.desig,level:lv});
       const bg=lv===1?C.sub1Bg:lv===2?C.sub2Bg:C.sub3Bg;
       const fg=lv===1?C.sub1Fg:lv===2?C.sub2Fg:C.sub3Fg;
       const pl=(lv-1)*20+8;
-      html+=`<tr class="rs${selCls}" id="ro-${r.id}" ${h}
-        onclick="selectRow('${r.id}',this,event)">
-        <td class="nc" style="background:${bg};color:${fg};cursor:pointer;font-weight:bold"
-          onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
-        <td colspan="4" style="background:${bg}">
-          <input class="di" value="${esc(r.desig)}" placeholder="Nom du sous-chapitre…"
-            style="color:${fg}!important;-webkit-text-fill-color:${fg};caret-color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
-            oninput="upd('${r.id}','desig',this.value)"/>
-        </td>
-        <td style="background:${bg}"></td>
-      </tr>`;
+      if(isBPU){
+        html+=`<tr class="rs${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${bg};color:${fg};cursor:pointer;font-weight:bold"
+            onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+          <td style="background:${bg}">
+            <input class="di" value="${esc(r.desig)}" placeholder="Nom du sous-chapitre…"
+              style="color:${fg}!important;-webkit-text-fill-color:${fg};caret-color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
+              oninput="upd('${r.id}','desig',this.value)"/>
+          </td>
+          <td style="background:${bg}"></td>
+        </tr>`;
+      }else{
+        html+=`<tr class="rs${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${bg};color:${fg};cursor:pointer;font-weight:bold"
+            onclick="toggleCollapse('${r.id}',event)">${r.collapsed?'▸':'▾'} ${esc(n)}</td>
+          <td colspan="4" style="background:${bg}">
+            <input class="di" value="${esc(r.desig)}" placeholder="Nom du sous-chapitre…"
+              style="color:${fg}!important;-webkit-text-fill-color:${fg};caret-color:${fg};font-weight:bold;text-transform:uppercase;padding-left:${pl}px"
+              oninput="upd('${r.id}','desig',this.value)"/>
+          </td>
+          <td style="background:${bg}"></td>
+        </tr>`;
+      }
     }
     else if(r.type==='art'){
       const hasKids=artHasSubarts(r.id);
-      const t=hasKids?0:artTotal(r); 
-      const qv=mode==='BPU'?'visibility:hidden':'';
-      html+=`<tr class="ra${selCls}" id="ro-${r.id}" ${h}
-        ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
-        onclick="selectRow('${r.id}',this,event)">
-        <td class="nc" style="background:${C.artBg};color:${C.artFg}">${esc(n)}</td>
-        <td style="background:${C.artBg}">
-          <textarea class="di" rows="1" placeholder="Désignation de l'article…"
-            style="color:${C.artFg}"
-            oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
-        </td>
-        ${hasKids
-          ?`<td style="background:${C.artBg}"></td>
-        <td style="background:${C.artBg}"></td>
-        <td style="background:${C.artBg}"></td>`
-          :`<td style="background:${C.artBg}">
-          <select class="ui" style="color:${C.artFg}" onchange="upd('${r.id}','unite',this.value)">
-            ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
-          </select>
-        </td>
-        <td style="background:${C.artBg};${qv}">
-          <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
-            style="color:${C.artFg}" oninput="upd('${r.id}','qty',this.value)" onkeydown="kn(event,'${r.id}','q')"/>
-        </td>
-        <td style="background:${C.artBg}">
-          <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
-            style="color:${C.artFg}" oninput="upd('${r.id}','pu',this.value)" onkeydown="kn(event,'${r.id}','p')"/>
-        </td>`}
-        <td class="tc${t?' v':''}" style="background:${C.artBg};color:${C.artFg}" id="at-${r.id}">${t?da(t):''}</td>
-      </tr>`;
+      if(isBPU){
+        const bDesig=r.bpu_desig!==undefined?r.bpu_desig:r.desig;
+        const bPu=r.bpu_pu!==undefined?r.bpu_pu:r.pu;
+        const bUnite=r.bpu_unite!==undefined?r.bpu_unite:r.unite;
+        const subline=buildBpuSubline(bUnite,num(bPu));
+        html+=`<tr class="ra${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${C.artBg};color:${C.artFg}">${esc(n)}</td>
+          <td style="background:${C.artBg}">
+            <textarea class="di" rows="1" placeholder="${esc(r.desig||'Désignation BPU…')}"
+              style="color:${C.artFg}"
+              oninput="upd('${r.id}','bpu_desig',this.value);ar(this)" onfocus="ar(this)">${esc(bDesig)}</textarea>
+            <div class="bpu-subline" id="sl-${r.id}">${subline}</div>
+          </td>
+          <td class="price-cell" style="background:${C.artBg}">
+            <input class="ni" type="number" value="${esc(bPu)}" placeholder="0,00" min="0" step="0.01"
+              style="color:${C.artFg}" oninput="upd('${r.id}','bpu_pu',this.value)"/>
+          </td>
+        </tr>`;
+      }else{
+        const t=hasKids?0:artTotal(r);
+        html+=`<tr class="ra${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${C.artBg};color:${C.artFg}">${esc(n)}</td>
+          <td style="background:${C.artBg}">
+            <textarea class="di" rows="1" placeholder="Désignation de l'article…"
+              style="color:${C.artFg}"
+              oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
+          </td>
+          ${hasKids
+            ?`<td style="background:${C.artBg}"></td>
+          <td style="background:${C.artBg}"></td>
+          <td style="background:${C.artBg}"></td>`
+            :`<td style="background:${C.artBg}">
+            <select class="ui" style="color:${C.artFg}" onchange="upd('${r.id}','unite',this.value)">
+              ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
+            </select>
+          </td>
+          <td style="background:${C.artBg}">
+            <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
+              style="color:${C.artFg}" oninput="upd('${r.id}','qty',this.value)" onkeydown="kn(event,'${r.id}','q')"/>
+          </td>
+          <td class="price-cell" style="background:${C.artBg}">
+            <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
+              style="color:${C.artFg}" oninput="upd('${r.id}','pu',this.value)" onkeydown="kn(event,'${r.id}','p')"/>
+          </td>`}
+          <td class="tc${t?' v':''} price-cell" style="background:${C.artBg};color:${C.artFg}" id="at-${r.id}">${t?da(t):''}</td>
+        </tr>`;
+      }
     }
     else if(r.type==='subart'){
-      const t=artTotal(r);
-      const qv=mode==='BPU'?'visibility:hidden':'';
-      html+=`<tr class="rsa${selCls}" id="ro-${r.id}" ${h}
-        ondragover="dov(event,'${r.id}')" ondragleave="dlv(event,'${r.id}')" ondrop="dp(event,'${r.id}')"
-        onclick="selectRow('${r.id}',this,event)">
-        <td class="nc" style="background:${C.saBg};color:${C.saFg};padding-left:14px">${esc(letter)}</td>
-        <td style="background:${C.saBg}">
-          <textarea class="di" rows="1" placeholder="Sous-article (ex: ø 110mm)…"
-            style="color:${C.saFg};padding-left:18px"
-            oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
-        </td>
-        <td style="background:${C.saBg}">
-          <select class="ui" style="color:${C.saFg}" onchange="upd('${r.id}','unite',this.value)">
-            ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
-          </select>
-        </td>
-        <td style="background:${C.saBg};${qv}">
-          <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
-            style="color:${C.saFg}" oninput="upd('${r.id}','qty',this.value)"/>
-        </td>
-        <td style="background:${C.saBg}">
-          <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
-            style="color:${C.saFg}" oninput="upd('${r.id}','pu',this.value)"/>
-        </td>
-        <td class="tc${t?' v':''}" style="background:${C.saBg};color:${C.saFg}" id="at-${r.id}">${t?da(t):''}</td>
-      </tr>`;
+      if(isBPU){
+        const bDesig=r.bpu_desig!==undefined?r.bpu_desig:r.desig;
+        const bPu=r.bpu_pu!==undefined?r.bpu_pu:r.pu;
+        const bUnite=r.bpu_unite!==undefined?r.bpu_unite:r.unite;
+        const subline=buildBpuSubline(bUnite,num(bPu));
+        html+=`<tr class="rsa${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${C.saBg};color:${C.saFg};padding-left:14px">${esc(letter)}</td>
+          <td style="background:${C.saBg}">
+            <textarea class="di" rows="1" placeholder="${esc(r.desig||'Sous-article BPU…')}"
+              style="color:${C.saFg};padding-left:18px"
+              oninput="upd('${r.id}','bpu_desig',this.value);ar(this)" onfocus="ar(this)">${esc(bDesig)}</textarea>
+            <div class="bpu-subline" id="sl-${r.id}">${subline}</div>
+          </td>
+          <td class="price-cell" style="background:${C.saBg}">
+            <input class="ni" type="number" value="${esc(bPu)}" placeholder="0,00" min="0" step="0.01"
+              style="color:${C.saFg}" oninput="upd('${r.id}','bpu_pu',this.value)"/>
+          </td>
+        </tr>`;
+      }else{
+        const t=artTotal(r);
+        html+=`<tr class="rsa${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td class="nc" style="background:${C.saBg};color:${C.saFg};padding-left:14px">${esc(letter)}</td>
+          <td style="background:${C.saBg}">
+            <textarea class="di" rows="1" placeholder="Sous-article (ex: ø 110mm)…"
+              style="color:${C.saFg};padding-left:18px"
+              oninput="upd('${r.id}','desig',this.value);ar(this)" onfocus="ar(this)">${esc(r.desig)}</textarea>
+          </td>
+          <td style="background:${C.saBg}">
+            <select class="ui" style="color:${C.saFg}" onchange="upd('${r.id}','unite',this.value)">
+              ${UNITS.map(u=>`<option${r.unite===u?' selected':''}>${u}</option>`).join('')}
+            </select>
+          </td>
+          <td style="background:${C.saBg}">
+            <input class="ni" type="number" value="${esc(r.qty)}" placeholder="0" min="0" step="0.001"
+              style="color:${C.saFg}" oninput="upd('${r.id}','qty',this.value)"/>
+          </td>
+          <td class="price-cell" style="background:${C.saBg}">
+            <input class="ni" type="number" value="${esc(r.pu)}" placeholder="0,00" min="0" step="0.01"
+              style="color:${C.saFg}" oninput="upd('${r.id}','pu',this.value)"/>
+          </td>
+          <td class="tc${t?' v':''} price-cell" style="background:${C.saBg};color:${C.saFg}" id="at-${r.id}">${t?da(t):''}</td>
+        </tr>`;
+      }
     }
     else if(r.type==='blank'){
-      html+=`<tr class="rb${selCls}" id="ro-${r.id}" ${h}
-        onclick="selectRow('${r.id}',this,event)">
-        <td style="background:#fff"></td>
-        <td colspan="4" style="background:#fff">
-          <input class="di" value="${esc(r.desig)}" placeholder="Note / description…"
-            style="font-style:italic;color:#333" oninput="upd('${r.id}','desig',this.value)"/>
-        </td>
-        <td style="background:#fff"></td>
-      </tr>`;
+      if(isBPU){
+        html+=`<tr class="rb${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td style="background:#fff"></td>
+          <td style="background:#fff">
+            <input class="di" value="${esc(r.desig)}" placeholder="Note / description…"
+              style="font-style:italic;color:#333" oninput="upd('${r.id}','desig',this.value)"/>
+          </td>
+          <td style="background:#fff"></td>
+        </tr>`;
+      }else{
+        html+=`<tr class="rb${selCls}" id="ro-${r.id}" ${h}
+          onclick="selectRow('${r.id}',this,event)">
+          <td style="background:#fff"></td>
+          <td colspan="4" style="background:#fff">
+            <input class="di" value="${esc(r.desig)}" placeholder="Note / description…"
+              style="font-style:italic;color:#333" oninput="upd('${r.id}','desig',this.value)"/>
+          </td>
+          <td style="background:#fff"></td>
+        </tr>`;
+      }
     }
   });
 
-  while(subStk.length){const s=subStk.pop();html+=subTotRow(s,true);}
-  if(chapStk.length)html+=chapTotRow(chapStk.pop());
-
-  const grand=grandTotal();
-  const tvaPct=num(document.getElementById('tva').value)/100;
-  const tvaAmt=grand*tvaPct;
-  const tvaLabel=document.getElementById('tva').value;
-  html+=`<tr class="rgt">
-    <td style="background:${C.gtBg}"></td>
-    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL GÉNÉRAL HT</span></td>
-    <td style="background:${C.gtBg}"></td>
-    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="gt-val">${da(grand)}</td>
-  </tr>
-  <tr class="rtva">
-    <td style="background:${C.gtBg}"></td>
-    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" id="tva-label" style="color:${C.gtFg}">TVA (${tvaLabel}%)</span></td>
-    <td style="background:${C.gtBg}"></td>
-    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg}" id="tva-val">${da(tvaAmt)}</td>
-  </tr>
-  <tr class="rttc">
-    <td style="background:${C.gtBg}"></td>
-    <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL TTC</span></td>
-    <td style="background:${C.gtBg}"></td>
-    <td class="tot-val" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="ttc-val">${da(grand+tvaAmt)}</td>
-  </tr>`;
+  if(!isBPU){
+    while(subStk.length){const s=subStk.pop();html+=subTotRow(s,true);}
+    if(chapStk.length)html+=chapTotRow(chapStk.pop());
+    const grand=grandTotal();
+    const tvaPct=num(document.getElementById('tva').value)/100;
+    const tvaAmt=grand*tvaPct;
+    const tvaLabel=document.getElementById('tva').value;
+    html+=`<tr class="rgt">
+      <td style="background:${C.gtBg}"></td>
+      <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL GÉNÉRAL HT</span></td>
+      <td style="background:${C.gtBg}"></td>
+      <td class="tot-val price-cell" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="gt-val">${da(grand)}</td>
+    </tr>
+    <tr class="rtva">
+      <td style="background:${C.gtBg}"></td>
+      <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" id="tva-label" style="color:${C.gtFg}">TVA (${tvaLabel}%)</span></td>
+      <td style="background:${C.gtBg}"></td>
+      <td class="tot-val price-cell" style="background:${C.gtBg};color:${C.gtFg}" id="tva-val">${da(tvaAmt)}</td>
+    </tr>
+    <tr class="rttc">
+      <td style="background:${C.gtBg}"></td>
+      <td colspan="3" style="background:${C.gtBg}"><span class="tot-label" style="color:${C.gtFg};font-size:12pt">TOTAL TTC</span></td>
+      <td style="background:${C.gtBg}"></td>
+      <td class="tot-val price-cell" style="background:${C.gtBg};color:${C.gtFg};font-size:12pt" id="ttc-val">${da(grand+tvaAmt)}</td>
+    </tr>`;
+  }
 
   document.getElementById('body').innerHTML=html;
 
@@ -1076,21 +1352,24 @@ function render(){
     tr.addEventListener('dragleave',e=>dlv2(tr));
     tr.addEventListener('drop',e=>dp2(e,tr));
   });
-  
   document.querySelectorAll('textarea.di').forEach(t=>{t.style.height='auto';t.style.height=t.scrollHeight+'px';});
-  
-  if(selId){
-    const tr=document.getElementById('ro-'+selId);
-    if(tr){tr.classList.add('sel-row');positionFloatCtrl(tr);}
-    else clearSelection();
-  }
+
+  // Restore selection visuals
+  if(selIds.size){
+    let lastTr=null;
+    selIds.forEach(sid=>{
+      const tr=document.getElementById('ro-'+sid);
+      if(tr){tr.classList.add(selIds.size===1||sid===selId?'sel-row':'sel-multi');lastTr=tr;}
+    });
+    if(lastTr)positionFloatCtrl(document.getElementById('ro-'+selId)||lastTr);
+  }else{clearSelection();}
   recalc();
 }
 
 /* ═══════════════════════════════════════════
    11. DRAG & DROP
 ═══════════════════════════════════════════ */
-let dragId=null;
+let dragIds=[];
 function dov2(e,tr){
   e.preventDefault();
   document.querySelectorAll('.dov-top,.dov-bot').forEach(el=>el.classList.remove('dov-top','dov-bot'));
@@ -1102,23 +1381,27 @@ function dp2(e,tr){
   e.preventDefault();
   document.querySelectorAll('.dov-top,.dov-bot').forEach(el=>el.classList.remove('dov-top','dov-bot'));
   const toId=tr.id.replace('ro-','');
-  if(!dragId||dragId===toId){dragId=null;return;}
-  const fromTr=document.getElementById('ro-'+dragId);if(fromTr)fromTr.classList.remove('dragging');
-  const fi=rows.findIndex(r=>r.id===dragId);
+  if(!dragIds.length||dragIds.includes(toId)){dragIds=[];return;}
+  dragIds.forEach(did=>{const t=document.getElementById('ro-'+did);if(t)t.classList.remove('dragging');});
   const ti=rows.findIndex(r=>r.id===toId);
-  if(fi<0||ti<0){dragId=null;return;}
-  
-  snapshot(); 
-
+  if(ti<0){dragIds=[];return;}
+  snapshot();
   const rect=tr.getBoundingClientRect();
   const before=e.clientY<rect.top+rect.height/2;
-  const block=extractBlock(fi);
-  rows.splice(fi,block.length);
+  // Collect all blocks for dragged rows
+  let block=[];
+  dragIds.forEach(did=>{
+    const fi=rows.findIndex(r=>r.id===did);
+    if(fi>=0&&!block.find(x=>x.id===did)){block.push(...extractBlock(fi));}
+  });
+  // Remove them
+  const blockIds=new Set(block.map(r=>r.id));
+  rows=rows.filter(r=>!blockIds.has(r.id));
   let ni=rows.findIndex(r=>r.id===toId);
   if(!before)ni++;
   if(ni<0)ni=rows.length;
   rows.splice(ni,0,...block);
-  dragId=null;render();
+  dragIds=[];render();
   triggerAutosave();
 }
 function dov(e,id){e.preventDefault();}
@@ -1221,72 +1504,110 @@ function doExport(){
   const{nums,letters}=buildNums();
   const{chapT,subT}=computeTotals();
   const l1=document.getElementById('hl1').value;
+  const isBPU=mode==='BPU';
   const data=[];
   data.push([l1]);
   data.push([document.getElementById('hl2').value]);
   data.push([document.getElementById('hl3').value]);
   data.push([]);
-  data.push([mode==='DQE'?'DETAIL QUANTITATIF ESTIMATIF':'BORDEREAU DES PRIX UNITAIRES']);
+  data.push([isBPU?'BORDEREAU DES PRIX UNITAIRES':'DETAIL QUANTITATIF ESTIMATIF']);
   data.push([]);
-  const hdr=['N°','DESIGNATION DES OUVRAGES','U'];
-  if(mode==='DQE')hdr.push('Quantité');
-  hdr.push('PRIX U HT','MONTANT HT');
-  data.push(hdr);
 
-  let chapStk=[],subStk2=[];
-  const pst2=()=>{
-    while(subStk2.length){
-      const s=subStk2.pop();const t=subT[s.id]||0;
-      const r=['','Total '+s.desig,''];if(mode==='DQE')r.push('');r.push('',t);data.push(r);
-    }
-  };
-  const pct2=()=>{
-    if(!chapStk.length)return;
-    const c=chapStk.pop();const t=chapT[c.id]||0;
-    const r=['','Total '+c.desig,''];if(mode==='DQE')r.push('');r.push('',t);data.push(r);
-  };
-
-  rows.forEach((r,i)=>{
-    const n=nums[i],letter=letters[i];
-    if(r.type==='chap'){
-      pst2();pct2();chapStk.push({id:r.id,desig:r.desig});
-      const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
-    }else if(r.type==='sub'){
-      const lv=r.level||1;
-      while(subStk2.length&&subStk2[subStk2.length-1].level>=lv){
-        const s=subStk2.pop();const t=subT[s.id]||0;
-        const rx=['','Total '+s.desig,''];if(mode==='DQE')rx.push('');rx.push('',t);data.push(rx);
+  if(isBPU){
+    // BPU: 3-col header (or 2-col if prices hidden)
+    const hdr=['N°','DESIGNATION DES OUVRAGES'];
+    if(showPrices)hdr.push('PRIX UNITAIRE HT');
+    data.push(hdr);
+    rows.forEach((r,i)=>{
+      const n=nums[i],letter=letters[i];
+      const bDesig=r=>r.bpu_desig!==undefined?r.bpu_desig:r.desig;
+      const bPu=r=>r.bpu_pu!==undefined?r.bpu_pu:r.pu;
+      const bUnite=r=>r.bpu_unite!==undefined?r.bpu_unite:r.unite;
+      if(r.type==='chap'){
+        const row=[n,r.desig];if(showPrices)row.push('');data.push(row);
+      }else if(r.type==='sub'){
+        const row=[n,r.desig];if(showPrices)row.push('');data.push(row);
+      }else if(r.type==='art'){
+        const subline=UNIT_WORDS[bUnite(r)]||(bUnite(r).toUpperCase());
+        const desigFull=bDesig(r)+(bDesig(r)?'\n':'')+subline;
+        const row=[n,desigFull];
+        if(showPrices)row.push(num(bPu(r)));
+        data.push(row);
+      }else if(r.type==='subart'){
+        const subline=UNIT_WORDS[bUnite(r)]||(bUnite(r).toUpperCase());
+        const desigFull=bDesig(r)+(bDesig(r)?'\n':'')+subline;
+        const row=[letter,desigFull];
+        if(showPrices)row.push(num(bPu(r)));
+        data.push(row);
+      }else if(r.type==='blank'){
+        const row=['',r.desig];if(showPrices)row.push('');data.push(row);
       }
-      subStk2.push({id:r.id,desig:r.desig,level:lv});
-      const row=[n,r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
-    }else if(r.type==='art'){
-      const hasKids=artHasSubarts(r.id);
-      const t=hasKids?artParentTotal(r):artTotal(r);
-      const row=[n,r.desig,hasKids?'':r.unite];
-      if(mode==='DQE')row.push(hasKids?'':num(r.qty));
-      row.push(hasKids?'':num(r.pu),t);data.push(row);
-    }else if(r.type==='subart'){
-      const t=artTotal(r);const row=[letter,r.desig,r.unite];
-      if(mode==='DQE')row.push(num(r.qty));row.push(num(r.pu),t);data.push(row);
-    }else if(r.type==='blank'){
-      const row=['',r.desig,''];if(mode==='DQE')row.push('');row.push('','');data.push(row);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:10},{wch:70},...(showPrices?[{wch:16}]:[])];
+    XLSX.utils.book_append_sheet(wb,ws,'BPU');
+  }else{
+    // DQE export
+    const hdr=['N°','DESIGNATION DES OUVRAGES','U'];
+    if(!showPrices){
+      hdr.push('Quantité','PRIX U HT','MONTANT HT');
+    }else{
+      hdr.push('Quantité','PRIX U HT','MONTANT HT');
     }
-  });
-  pst2();pct2();
+    data.push(hdr);
+    let chapStk=[],subStk2=[];
+    const pst2=()=>{
+      while(subStk2.length){
+        const s=subStk2.pop();const t=subT[s.id]||0;
+        const r=['','Total '+s.desig,'','',showPrices?'':'',showPrices?t:''];data.push(r);
+      }
+    };
+    const pct2=()=>{
+      if(!chapStk.length)return;
+      const c=chapStk.pop();const t=chapT[c.id]||0;
+      const r=['','Total '+c.desig,'','',showPrices?'':'',showPrices?t:''];data.push(r);
+    };
+    rows.forEach((r,i)=>{
+      const n=nums[i],letter=letters[i];
+      if(r.type==='chap'){
+        pst2();pct2();chapStk.push({id:r.id,desig:r.desig});
+        data.push([n,r.desig,'','','','']);
+      }else if(r.type==='sub'){
+        const lv=r.level||1;
+        while(subStk2.length&&subStk2[subStk2.length-1].level>=lv){
+          const s=subStk2.pop();const t=subT[s.id]||0;
+          data.push(['','Total '+s.desig,'','','',showPrices?t:'']);
+        }
+        subStk2.push({id:r.id,desig:r.desig,level:lv});
+        data.push([n,r.desig,'','','','']);
+      }else if(r.type==='art'){
+        const hasKids=artHasSubarts(r.id);
+        const t=hasKids?artParentTotal(r):artTotal(r);
+        data.push([n,r.desig,hasKids?'':r.unite,hasKids?'':num(r.qty),
+          showPrices?(hasKids?'':num(r.pu)):'',showPrices?t:'']);
+      }else if(r.type==='subart'){
+        const t=artTotal(r);
+        data.push([letter,r.desig,r.unite,num(r.qty),showPrices?num(r.pu):'',showPrices?t:'']);
+      }else if(r.type==='blank'){
+        data.push(['',r.desig,'','','','']);
+      }
+    });
+    pst2();pct2();
+    if(showPrices){
+      const grand=grandTotal();
+      const tvaPct=num(document.getElementById('tva').value)/100;
+      const tvaAmt=grand*tvaPct;
+      data.push([]);
+      data.push(['','TOTAL GÉNÉRAL HT','','','',grand]);
+      data.push(['','TVA '+document.getElementById('tva').value+'%','','','',tvaAmt]);
+      data.push(['','TOTAL TTC','','','',grand+tvaAmt]);
+    }
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:10},{wch:55},{wch:6},{wch:10},{wch:14},{wch:16}];
+    XLSX.utils.book_append_sheet(wb,ws,'DQE');
+  }
 
-  const grand=grandTotal();
-  const tvaPct=num(document.getElementById('tva').value)/100;
-  const tvaAmt=grand*tvaPct;
-  data.push([]);
-  const mk=(l,v)=>{const r=['',l,''];if(mode==='DQE')r.push('');r.push('',v);return r;};
-  data.push(mk('TOTAL GÉNÉRAL HT',grand));
-  data.push(mk('TVA '+document.getElementById('tva').value+'%',tvaAmt));
-  data.push(mk('TOTAL TTC',grand+tvaAmt));
-
-  const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:10},{wch:55},{wch:6},...(mode==='DQE'?[{wch:10}]:[]),{wch:14},{wch:16}];
-  XLSX.utils.book_append_sheet(wb,ws,mode);
-  XLSX.writeFile(wb,(l1||'devis').replace(/\s+/g,'_').substring(0,40)+'_'+mode+'.xlsx');
+  XLSX.writeFile(wb,(l1||'devis').replace(/\s+/g,'_').substring(0,40)+'_'+mode+(showPrices?'':'_sans-prix')+'.xlsx');
   notif('✓ Excel exporté');
 }
 
